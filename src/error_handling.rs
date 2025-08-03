@@ -1,4 +1,4 @@
-use std::{error::Error, fmt::Debug};
+use std::{error::Error, fmt::Debug, ops::{ControlFlow, FromResidual, Try}};
 
 use bevy::{ecs::error::ErrorContext, prelude::*};
 
@@ -78,56 +78,96 @@ impl std::fmt::Display for Failure {
 
 impl Error for Failure {}
 
+pub struct MaybeFailure<T>(Result<T, Failure>);
+
+impl<T> FromResidual for MaybeFailure<T> {
+    fn from_residual(failure: Failure) -> Self {
+        MaybeFailure(Err(failure))
+    }
+}
+
+impl<T> Try for MaybeFailure<T> {
+    type Output = T;
+    type Residual = Failure;
+
+    fn from_output(output: T) -> Self {
+        MaybeFailure(Ok(output))
+    }
+
+    fn branch(self) -> ControlFlow<Self::Residual, Self::Output> {
+        match self.0 {
+            Ok(value) => ControlFlow::Continue(value),
+            Err(failure) => ControlFlow::Break(failure),
+        }
+    }
+}
+
+impl FromResidual<Failure> for () {
+    fn from_residual(_: Failure) -> Self {}
+}
+
+impl FromResidual<Failure> for Result {
+    fn from_residual(residual: Failure) -> Self {
+        Err(residual.into())
+    }
+}
+
+impl FromResidual<Failure> for Result<(), Failure> {
+    fn from_residual(residual: Failure) -> Self {
+        Err(residual)
+    }
+}
+
 pub trait ToFailure {
     type Inner;
 
-    fn else_return(self) -> Result<Self::Inner, Failure>;
-    fn else_warn(self, warn: impl ToString) -> Result<Self::Inner, Failure>;
-    fn else_error(self, error: impl ToString) -> Result<Self::Inner, Failure>;
+    fn else_return(self) -> MaybeFailure<Self::Inner>;
+    fn else_warn(self, warn: impl ToString) -> MaybeFailure<Self::Inner>;
+    fn else_error(self, error: impl ToString) -> MaybeFailure<Self::Inner>;
 }
 
 impl<T> ToFailure for Option<T> {
     type Inner = T;
 
-    fn else_return(self) -> Result<Self::Inner, Failure> {
-        self.ok_or(Failure::Return)
+    fn else_return(self) -> MaybeFailure<Self::Inner> {
+        MaybeFailure(self.ok_or(Failure::Return))
     }
-    fn else_warn(self, warn: impl ToString) -> Result<Self::Inner, Failure> {
-        self.ok_or(Failure::Warn(warn.to_string()))
+    fn else_warn(self, warn: impl ToString) -> MaybeFailure<Self::Inner> {
+        MaybeFailure(self.ok_or(Failure::Warn(warn.to_string())))
     }
-    fn else_error(self, error: impl ToString) -> Result<Self::Inner, Failure> {
-        self.ok_or(Failure::Error(error.to_string()))
+    fn else_error(self, error: impl ToString) -> MaybeFailure<Self::Inner> {
+        MaybeFailure(self.ok_or(Failure::Error(error.to_string())))
     }
 }
 
 impl<T, E: Debug> ToFailure for Result<T, E> {
     type Inner = T;
 
-    fn else_return(self) -> Result<Self::Inner, Failure> {
-        match self {
+    fn else_return(self) -> MaybeFailure<Self::Inner> {
+        MaybeFailure(match self {
             Ok(value) => Ok(value),
             Err(_) => Err(Failure::Return),
-        }
+        })
     }
-    fn else_warn(self, warn: impl ToString) -> Result<Self::Inner, Failure> {
-        match self {
+    fn else_warn(self, warn: impl ToString) -> MaybeFailure<Self::Inner> {
+        MaybeFailure(match self {
             Ok(value) => Ok(value),
             Err(result_warn) => Err(Failure::Warn(format!(
                 "{}\n{:?}",
                 warn.to_string(),
                 result_warn
             ))),
-        }
+        })
     }
-    fn else_error(self, error: impl ToString) -> Result<Self::Inner, Failure> {
-        match self {
+    fn else_error(self, error: impl ToString) -> MaybeFailure<Self::Inner> {
+        MaybeFailure(match self {
             Ok(value) => Ok(value),
             Err(result_error) => Err(Failure::Error(format!(
                 "{}\n{:?}",
                 error.to_string(),
                 result_error
             ))),
-        }
+        })
     }
 }
 

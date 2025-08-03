@@ -1,3 +1,5 @@
+use std::ops::{ControlFlow, FromResidual, Try};
+
 use crate::{
     error_handling::ToFailure, mind_control::Controlled, propagate::HierarchyPropagatePlugin,
 };
@@ -19,7 +21,7 @@ pub fn plugin(app: &mut App) {
     .insert_resource(AmbientLight {
         brightness: 0.0,
         ..default()
-    });
+    }).init_resource::<CameraFollow>();
 }
 
 /// Stops a gltf scene from casting shadows.
@@ -33,6 +35,9 @@ pub struct ComesFromRootEntity(pub Entity);
 /// Camera's offset from the controlled character.
 const CAMERA_OFFSET: Vec3 = Vec3::new(0., 10., 13.);
 
+#[derive(Default, Resource)]
+pub struct CameraFollow(Option<Entity>);
+
 pub fn spawn_camera(mut commands: Commands, mut clear_colour: ResMut<ClearColor>) {
     clear_colour.0 = Color::BLACK;
     commands.spawn((
@@ -40,6 +45,42 @@ pub fn spawn_camera(mut commands: Commands, mut clear_colour: ResMut<ClearColor>
         Camera { ..default() },
         Camera3d { ..default() },
     ));
+}
+
+struct MaybeBad<T>(Option<T>);
+struct Bad;
+
+impl<T> FromResidual for MaybeBad<T> {
+    fn from_residual(_: Bad) -> Self {
+        MaybeBad(None)
+    }
+}
+
+impl FromResidual<Bad> for () {
+    fn from_residual(_: Bad) -> Self {
+        
+    }
+}
+
+impl<T> Try for MaybeBad<T> {
+    type Output = T;
+    type Residual = Bad;
+
+    fn from_output(output: Self::Output) -> Self {
+        MaybeBad(Some(output))
+    }
+
+    fn branch(self) -> std::ops::ControlFlow<Self::Residual, Self::Output> {
+        match self.0 {
+            Some(value) => ControlFlow::Continue(value),
+            None => ControlFlow::Break(Bad),
+        }
+    }
+}
+
+pub fn camera_follow(camera_follow: Res<CameraFollow>) {
+    let blah = MaybeBad(Some(0_i32));
+    let dah = blah?;
 }
 
 pub fn move_camera_to_controlled(
