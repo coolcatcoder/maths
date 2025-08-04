@@ -1,5 +1,5 @@
 use crate::{
-    error_handling::ToFailure,
+    error_handling::ToUnwrapResult,
     instantiate::{Config, GetOrInsert},
     machines::outlet::OutletSensor,
     mouse::{drag, Interactable},
@@ -31,7 +31,7 @@ impl CableConfig {
 }
 
 impl Config for CableConfig {
-    fn instantiate<'a>(self, world: &mut World, root_entity: Entity) -> Result {
+    fn instantiate<'a>(self, world: &mut World, root_entity: Entity) {
         let asset_server = world.resource::<AssetServer>();
         let plug_scene = asset_server.load("machines/plug.glb#Scene0");
         let cable_scene = asset_server.load("machines/cable.glb#Scene0");
@@ -183,8 +183,6 @@ impl Config for CableConfig {
             DistanceJoint::new(previous, tail)
                 .with_limits(0., Self::CABLE_RADIUS + 0.2 + Self::MAX_DISTANCE),
         );
-
-        Ok(())
     }
 }
 
@@ -202,7 +200,7 @@ pub fn drag_start(
     mut plug: Query<&mut Plug>,
     mut outlet_sensor: Query<&mut OutletSensor>,
     mut commands: Commands,
-) -> Result {
+) {
     let target = drag_start.target();
     let mut plug = plug
         .get_mut(target)
@@ -221,16 +219,12 @@ pub fn drag_start(
         .position(|plug| *plug == target)
         .else_return()?;
     outlet_sensor.plugs.swap_remove(position);
-
-    Ok(())
 }
 
-pub fn drag_end(drag_end: Trigger<Pointer<DragEnd>>, mut plug: Query<&mut Plug>) -> Result {
+pub fn drag_end(drag_end: Trigger<Pointer<DragEnd>>, mut plug: Query<&mut Plug>) {
     let mut plug = plug
         .get_mut(drag_end.target())
         .else_warn("Plug doesn't have a Plug.")?;
 
     plug.dragged = false;
-
-    Ok(())
 }

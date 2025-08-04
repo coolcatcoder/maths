@@ -1,4 +1,4 @@
-use crate::error_handling::{ForEachFallible, ToFailure};
+use crate::error_handling::ToUnwrapResult;
 use avian3d::prelude::*;
 use bevy::prelude::*;
 
@@ -35,8 +35,8 @@ fn create_floor(mut commands: Commands) {
     ));
 }
 
-fn load(extras: Query<(&GltfExtras, Entity), Added<GltfExtras>>, mut commands: Commands) -> Result {
-    extras.iter().for_each_fallible(|(extras, entity)| {
+fn load(extras: Query<(&GltfExtras, Entity), Added<GltfExtras>>, mut commands: Commands) {
+    extras.iter().for_each(|(extras, entity)| {
         let extras_json = serde_json::from_str::<serde_json::Value>(&extras.value)
             .else_error("Gltf extras was not json.")?;
         let collision = extras_json
@@ -54,7 +54,5 @@ fn load(extras: Query<(&GltfExtras, Entity), Added<GltfExtras>>, mut commands: C
         commands
             .entity(entity)
             .insert((rigid_body, Collider::cuboid(1., 1., 1.)));
-
-        Ok(())
     })
 }

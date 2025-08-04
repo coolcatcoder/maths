@@ -30,13 +30,6 @@ mod sync;
 const FPS_DEBUG: bool = true;
 
 fn main() {
-    if GLOBAL_ERROR_HANDLER
-        .set(error_handling::error_handler)
-        .is_err()
-    {
-        eprintln!("Failed to set error handler. Defaulting to panicking.");
-    }
-
     let mut app = App::new();
 
     app.add_plugins((

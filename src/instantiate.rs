@@ -47,7 +47,7 @@ impl GetOrInsert for EntityWorldMut<'_> {
 }
 
 pub trait Config {
-    fn instantiate(self, world: &mut World, root_entity: Entity) -> Result;
+    fn instantiate(self, world: &mut World, root_entity: Entity);
 }
 
 pub trait InstantiateInto {
@@ -59,7 +59,7 @@ impl InstantiateInto for EntityCommands<'_> {
         let entity_move = self.id();
 
         self.commands_mut()
-            .queue(move |world: &mut World| -> Result { config.instantiate(world, entity_move) });
+            .queue(move |world: &mut World| { config.instantiate(world, entity_move) });
 
         self
     }

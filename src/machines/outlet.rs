@@ -4,7 +4,7 @@ use avian3d::prelude::*;
 use bevy::prelude::*;
 
 use crate::{
-    error_handling::{ForEachFallible, ToFailure},
+    error_handling::ToUnwrapResult,
     machines::cable::Plug,
 };
 
@@ -58,10 +58,10 @@ fn out_of_range(
     mut outlet_sensor: Query<&OutletSensor>,
     mut plug: Query<&mut Plug>,
     mut collisions_started: EventReader<CollisionEnded>,
-) -> Result {
+) {
     collisions_started
         .read()
-        .for_each_fallible(|CollisionEnded(entity_1, entity_2)| {
+        .for_each(|CollisionEnded(entity_1, entity_2)| {
             let ((outlet_sensor_entity, _), (_, mut plug)) =
                 match (outlet_sensor.get_mut(*entity_1), plug.get_mut(*entity_2)) {
                     (Ok(outlet_sensor), Ok(plug)) => {
@@ -72,10 +72,10 @@ fn out_of_range(
                             (Ok(outlet_sensor), Ok(plug)) => {
                                 ((*entity_2, outlet_sensor), (*entity_1, plug))
                             }
-                            _ => return Ok(()),
+                            _ => return,
                         }
                     }
-                    _ => return Ok(()),
+                    _ => return,
                 };
 
             let index = plug
@@ -84,7 +84,6 @@ fn out_of_range(
                 .position(|entity| *entity == outlet_sensor_entity)
                 .else_return()?;
             plug.outlet_sensors_within_range.swap_remove(index);
-            Ok(())
         })
 }
 
@@ -92,11 +91,11 @@ fn connect(
     mut plug: Query<(Entity, &mut Plug)>,
     mut outlet_sensor: Query<&mut OutletSensor>,
     mut commands: Commands,
-) -> Result {
+) {
     plug.iter_mut()
-        .for_each_fallible(|(plug_entity, mut plug)| {
+        .for_each(|(plug_entity, mut plug)| {
             if plug.dragged || plug.outlet_sensor_connected_to.is_some() {
-                return Ok(());
+                return;
             }
 
             let outlet_sensor_entity = *plug.outlet_sensors_within_range.first().else_return()?;
@@ -107,7 +106,7 @@ fn connect(
             if let Some(max_plugs) = outlet_sensor.max_plugs
                 && u8::from(max_plugs) as usize == outlet_sensor.plugs.len()
             {
-                return Ok(());
+                return;
             }
 
             outlet_sensor.plugs.push(plug_entity);
@@ -118,7 +117,5 @@ fn connect(
                     .with_compliance(0.),
             );
             info!("Connected!");
-
-            Ok(())
-        })
+        });
 }

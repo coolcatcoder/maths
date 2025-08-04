@@ -1,4 +1,4 @@
-use crate::{error_handling::ToFailure, render::ComesFromRootEntity};
+use crate::{error_handling::ToUnwrapResult, render::ComesFromRootEntity};
 use avian3d::prelude::LinearVelocity;
 use bevy::{
     ecs::{component::HookContext, world::DeferredWorld},
@@ -34,20 +34,18 @@ impl Interactable {
 pub fn outline_on_over(
     over: Trigger<Pointer<Over>>,
     mut outline: Query<&mut OutlineVolume, With<Interactable>>,
-) -> Result {
+) {
     let mut outline = outline.get_mut(over.target()).else_return()?;
     outline.visible = true;
     outline.colour = Color::srgb(0., 1., 1.);
     outline.width = 3.;
-    Ok(())
 }
 
 pub fn remove_outline_on_out(
     out: Trigger<Pointer<Out>>,
     mut outline: Query<&mut OutlineVolume, With<Interactable>>,
-) -> Result {
+) {
     outline.get_mut(out.target()).else_return()?.visible = false;
-    Ok(())
 }
 
 pub fn drag(
@@ -58,7 +56,7 @@ pub fn drag(
     mut ray_cast: MeshRayCast,
     time: Res<Time>,
     comes_from_root_entity: Query<&ComesFromRootEntity>,
-) -> Result {
+) {
     let (mut velocity, transform) = velocity
         .get_mut(drag.target())
         .else_error("No linear velocity when dragging entity.")?;
@@ -101,6 +99,4 @@ pub fn drag(
     let time = time.delta_secs();
     **velocity = displacement * time * 1000.;
     **velocity = velocity.min(Vec3::splat(10.));
-
-    Ok(())
 }

@@ -1,7 +1,7 @@
 use std::ops::{ControlFlow, FromResidual, Try};
 
 use crate::{
-    error_handling::ToFailure, mind_control::Controlled, propagate::HierarchyPropagatePlugin,
+    error_handling::ToUnwrapResult, mind_control::Controlled, propagate::HierarchyPropagatePlugin,
 };
 use bevy::{pbr::NotShadowCaster, prelude::*};
 
@@ -87,12 +87,11 @@ pub fn move_camera_to_controlled(
     controlled: Option<Single<&Transform, With<Controlled>>>,
     mut camera: Single<&mut Transform, (With<Camera>, Without<Controlled>)>,
     time: Res<Time>,
-) -> Result {
+) {
     let controlled_translation = controlled.else_return()?.translation.xz();
     let mut camera_translation =
         camera.translation.xz() - Vec2::new(CAMERA_OFFSET.x, CAMERA_OFFSET.z);
     camera_translation.smooth_nudge(&controlled_translation, 10., time.delta_secs());
     camera.translation.x = camera_translation.x + CAMERA_OFFSET.x;
     camera.translation.z = camera_translation.y + CAMERA_OFFSET.z;
-    Ok(())
 }

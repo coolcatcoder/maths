@@ -4,7 +4,7 @@ use bevy::{
 };
 use bevy_mod_outline::OutlineVolume;
 
-use crate::error_handling::ToFailure;
+use crate::error_handling::ToUnwrapResult;
 
 pub fn plugin(app: &mut App) {
     app.init_resource::<ControlledEntity>()
@@ -48,18 +48,16 @@ pub fn take_control_on_click(click: Trigger<Pointer<Click>>, mut commands: Comma
 pub fn outline_on_over(
     over: Trigger<Pointer<Over>>,
     mut outline: Query<&mut OutlineVolume, Without<Controlled>>,
-) -> Result {
+) {
     let mut outline = outline.get_mut(over.target()).else_return()?;
     outline.visible = true;
     outline.colour = Color::srgb(0., 1., 1.);
     outline.width = 3.;
-    Ok(())
 }
 
 pub fn remove_outline_on_out(
     out: Trigger<Pointer<Out>>,
     mut outline: Query<&mut OutlineVolume, Without<Controlled>>,
-) -> Result {
+) {
     outline.get_mut(out.target()).else_return()?.visible = false;
-    Ok(())
 }

@@ -3,7 +3,7 @@ use std::num::NonZero;
 use bevy::prelude::*;
 
 use crate::{
-    error_handling::{ForEachFallible, ToFailure},
+    error_handling::ToUnwrapResult,
     machines::{
         cable::Plug,
         outlet::{OutletSensor, OutletSensorEntity},
@@ -34,10 +34,10 @@ fn powered(
     outlet_sensor: Query<&OutletSensor>,
     plug: Query<&Plug>,
     energy: Query<&Energy>,
-) -> Result {
+) {
     powered
         .iter_mut()
-        .for_each_fallible(|(mut powered, outlet_sensor_entity)| {
+        .for_each(|(mut powered, outlet_sensor_entity)| {
             let first_outlet_sensor = outlet_sensor
                 .get(outlet_sensor_entity.0)
                 .else_error("No outlet sensor.")?;
@@ -48,7 +48,7 @@ fn powered(
 
             let Some(plug_entity) = first_outlet_sensor.plugs.first() else {
                 powered.0 = false;
-                return Ok(());
+                return;
             };
             let first_plug = plug
                 .get(*plug_entity)
@@ -59,7 +59,7 @@ fn powered(
 
             let Some(second_outlet_sensor_entity) = second_plug.outlet_sensor_connected_to else {
                 powered.0 = false;
-                return Ok(());
+                return;
             };
             let second_outlet_sensor = outlet_sensor
                 .get(second_outlet_sensor_entity)
@@ -71,9 +71,7 @@ fn powered(
             } else {
                 powered.0 = false;
             }
-
-            Ok(())
-        })
+        });
 }
 
 fn drain(
@@ -83,7 +81,7 @@ fn drain(
     takes_power: Query<&TakesPower>,
     time: Res<Time>,
     mut time_left: Local<f32>,
-) -> Result {
+) {
     let time_delta = time.delta_secs();
     *time_left -= time_delta;
 
@@ -91,7 +89,7 @@ fn drain(
         *time_left += 1.;
 
         // For each fallible is okay, as if anything goes wrong, there will be an error.
-        energy.iter_mut().for_each_fallible(
+        energy.iter_mut().for_each(
             |(mut energy, OutletSensorEntity(outlet_sensor_entity))| {
                 let outlet_sensor = outlet_sensors
                     .get(*outlet_sensor_entity)
@@ -125,11 +123,7 @@ fn drain(
                 }
 
                 energy.0 = energy.0.saturating_sub(energy_to_remove);
-
-                Ok(())
             },
-        )?;
+        );
     }
-
-    Ok(())
 }

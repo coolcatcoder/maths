@@ -1,5 +1,5 @@
 use crate::{
-    error_handling::ToFailure,
+    error_handling::ToUnwrapResult,
     instantiate::Config,
     lost::{change_range, move_towards_single_axis},
     physics::common_properties::AIR_RESISTANCE,
@@ -16,7 +16,7 @@ pub fn plugin(app: &mut App) {
 pub struct RobotConfig;
 
 impl Config for RobotConfig {
-    fn instantiate(self, world: &mut World, root_entity: Entity) -> Result {
+    fn instantiate(self, world: &mut World, root_entity: Entity) {
         let asset_server = world.resource::<AssetServer>();
         let scene = asset_server.load("machines/robot.glb#Scene0");
 
@@ -34,8 +34,6 @@ impl Config for RobotConfig {
                 LockedAxes::ROTATION_LOCKED.unlock_rotation_y(),
                 Collider::cuboid(1., 2., 2.),
             ));
-
-        Ok(())
     }
 }
 
@@ -76,7 +74,7 @@ fn hover(
 
                 let distance = (desired_y - current_y).abs();
                 let speed = change_range((0., 0.5), (0., 2.), distance).unwrap_or(2.);
-                info!(speed);
+                //info!(speed);
 
                 move_towards_single_axis(
                     hit.point1.y + 2.,

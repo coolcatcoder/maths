@@ -1,5 +1,5 @@
 use crate::{
-    error_handling::{ForEachFallible, ToFailure},
+    error_handling::ToUnwrapResult,
     instantiate::{Config, InstantiateInto},
     machines::{
         outlet::{OutletSensor, OutletSensorEntity},
@@ -28,7 +28,7 @@ impl Default for BatteryConfig {
 }
 
 impl Config for BatteryConfig {
-    fn instantiate(self, world: &mut World, root_entity: Entity) -> Result {
+    fn instantiate(self, world: &mut World, root_entity: Entity) {
         let asset_server = world.resource::<AssetServer>();
         let scene = asset_server.load("machines/battery.glb#Scene0");
 
@@ -105,8 +105,6 @@ impl Config for BatteryConfig {
             OutletSensorEntity(outlet_sensor_entity),
             Energy(self.charge),
         ));
-
-        Ok(())
     }
 }
 
@@ -121,8 +119,8 @@ pub struct BatteryLights {
     bottom: Entity,
 }
 
-fn load(extras: Query<(&GltfExtras, Entity), Added<GltfExtras>>, mut commands: Commands) -> Result {
-    extras.iter().for_each_fallible(|(extras, entity)| {
+fn load(extras: Query<(&GltfExtras, Entity), Added<GltfExtras>>, mut commands: Commands) {
+    extras.iter().for_each(|(extras, entity)| {
         let extras_json = serde_json::from_str::<serde_json::Value>(&extras.value)
             .else_error("Gltf extras was not json.")?;
         let charge = u8::try_from(
@@ -139,18 +137,16 @@ fn load(extras: Query<(&GltfExtras, Entity), Added<GltfExtras>>, mut commands: C
         commands
             .entity(entity)
             .instantiate(BatteryConfig { charge });
-
-        Ok(())
-    })
+    });
 }
 
 fn charge_indicator(
     mut battery: Query<(&Energy, &BatteryLights)>,
     mut visibility: Query<&mut Visibility>,
-) -> Result {
+) {
     battery
         .iter_mut()
-        .for_each_fallible(|(energy, battery_lights)| {
+        .for_each(|(energy, battery_lights)| {
             let mut top_visibility = visibility
                 .get_mut(battery_lights.top)
                 .else_error("No visibility on light.")?;
@@ -177,7 +173,5 @@ fn charge_indicator(
             } else {
                 Visibility::Hidden
             };
-
-            Ok(())
-        })
+        });
 }

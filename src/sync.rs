@@ -1,4 +1,4 @@
-use crate::error_handling::ToFailure;
+use crate::error_handling::ToUnwrapResult;
 use bevy::prelude::*;
 
 pub fn plugin(app: &mut App) {
@@ -22,12 +22,11 @@ pub struct SyncTranslation {
 fn sync_translation(
     sync: Query<(&SyncTranslation, &mut Transform)>,
     target: Query<&Transform, Without<SyncTranslation>>,
-) -> Result {
+) {
     for (sync, mut transform) in sync {
         let target = target.get(sync.target).else_return()?;
         transform.translation = target.translation + sync.offset;
     }
-    Ok(())
 }
 
 /// Syncs a rotation to another entity, if it exists and has the component.
@@ -41,10 +40,9 @@ pub struct SyncRotation {
 fn sync_rotation(
     sync: Query<(&SyncRotation, &mut Transform)>,
     target: Query<&Transform, Without<SyncRotation>>,
-) -> Result {
+) {
     for (sync, mut transform) in sync {
         let target = target.get(sync.target).else_return()?;
         transform.rotation = target.rotation;
     }
-    Ok(())
 }
