@@ -6,7 +6,7 @@ use bevy::{
 
 use crate::{
     controls::{Action, Actions},
-    mind_control::{outline_on_over, remove_outline_on_out, take_control_on_click, Controlled},
+    mind_control::{Controlled, outline_on_over, remove_outline_on_out, take_control_on_click},
 };
 
 pub mod tester;

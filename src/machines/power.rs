@@ -89,8 +89,9 @@ fn drain(
         *time_left += 1.;
 
         // For each fallible is okay, as if anything goes wrong, there will be an error.
-        energy.iter_mut().for_each(
-            |(mut energy, OutletSensorEntity(outlet_sensor_entity))| {
+        energy
+            .iter_mut()
+            .for_each(|(mut energy, OutletSensorEntity(outlet_sensor_entity))| {
                 let outlet_sensor = outlet_sensors
                     .get(*outlet_sensor_entity)
                     .else_error("Couldn't get outlet sensor entity.")?;
@@ -123,7 +124,6 @@ fn drain(
                 }
 
                 energy.0 = energy.0.saturating_sub(energy_to_remove);
-            },
-        );
+            });
     }
 }

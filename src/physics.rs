@@ -54,5 +54,5 @@ fn load(extras: Query<(&GltfExtras, Entity), Added<GltfExtras>>, mut commands: C
         commands
             .entity(entity)
             .insert((rigid_body, Collider::cuboid(1., 1., 1.)));
-    })
+    });
 }

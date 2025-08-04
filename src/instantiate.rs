@@ -59,7 +59,7 @@ impl InstantiateInto for EntityCommands<'_> {
         let entity_move = self.id();
 
         self.commands_mut()
-            .queue(move |world: &mut World| { config.instantiate(world, entity_move) });
+            .queue(move |world: &mut World| config.instantiate(world, entity_move));
 
         self
     }

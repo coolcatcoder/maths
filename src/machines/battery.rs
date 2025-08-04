@@ -144,34 +144,32 @@ fn charge_indicator(
     mut battery: Query<(&Energy, &BatteryLights)>,
     mut visibility: Query<&mut Visibility>,
 ) {
-    battery
-        .iter_mut()
-        .for_each(|(energy, battery_lights)| {
-            let mut top_visibility = visibility
-                .get_mut(battery_lights.top)
-                .else_error("No visibility on light.")?;
-            *top_visibility = if energy.0 >= 66 {
-                Visibility::Inherited
-            } else {
-                Visibility::Hidden
-            };
+    battery.iter_mut().for_each(|(energy, battery_lights)| {
+        let mut top_visibility = visibility
+            .get_mut(battery_lights.top)
+            .else_error("No visibility on light.")?;
+        *top_visibility = if energy.0 >= 66 {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
 
-            let mut middle_visibility = visibility
-                .get_mut(battery_lights.middle)
-                .else_error("No visibility on light.")?;
-            *middle_visibility = if energy.0 >= 33 {
-                Visibility::Inherited
-            } else {
-                Visibility::Hidden
-            };
+        let mut middle_visibility = visibility
+            .get_mut(battery_lights.middle)
+            .else_error("No visibility on light.")?;
+        *middle_visibility = if energy.0 >= 33 {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
 
-            let mut bottom_visibility = visibility
-                .get_mut(battery_lights.bottom)
-                .else_error("No visibility on light.")?;
-            *bottom_visibility = if energy.0 > 0 {
-                Visibility::Inherited
-            } else {
-                Visibility::Hidden
-            };
-        });
+        let mut bottom_visibility = visibility
+            .get_mut(battery_lights.bottom)
+            .else_error("No visibility on light.")?;
+        *bottom_visibility = if energy.0 > 0 {
+            Visibility::Inherited
+        } else {
+            Visibility::Hidden
+        };
+    });
 }

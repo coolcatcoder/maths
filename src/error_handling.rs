@@ -1,6 +1,10 @@
-use std::{convert::Infallible, error::Error, fmt::Debug, ops::{ControlFlow, FromResidual, Try}};
+use std::{
+    convert::Infallible,
+    fmt::Debug,
+    ops::{ControlFlow, FromResidual, Try},
+};
 
-use bevy::{ecs::error::ErrorContext, prelude::*};
+use bevy::prelude::*;
 pub enum UnwrapResult<T> {
     Ok(T),
     Return,
@@ -70,7 +74,7 @@ impl<T> ToUnwrapResult for Option<T> {
     fn else_return(self) -> UnwrapResult<Self::Inner> {
         match self {
             Some(value) => UnwrapResult::Ok(value),
-            None => UnwrapResult::Return
+            None => UnwrapResult::Return,
         }
     }
     fn else_warn(self, warn: impl ToString) -> UnwrapResult<Self::Inner> {
@@ -93,19 +97,23 @@ impl<T, E: Debug> ToUnwrapResult for Result<T, E> {
     fn else_return(self) -> UnwrapResult<Self::Inner> {
         match self {
             Ok(value) => UnwrapResult::Ok(value),
-            Err(_) => UnwrapResult::Return
+            Err(_) => UnwrapResult::Return,
         }
     }
     fn else_warn(self, warn: impl ToString) -> UnwrapResult<Self::Inner> {
         match self {
             Ok(value) => UnwrapResult::Ok(value),
-            Err(result_error) => UnwrapResult::Warn(format!("{}\n{result_error:?}", warn.to_string())),
+            Err(result_error) => {
+                UnwrapResult::Warn(format!("{}\n{result_error:?}", warn.to_string()))
+            }
         }
     }
     fn else_error(self, error: impl ToString) -> UnwrapResult<Self::Inner> {
         match self {
             Ok(value) => UnwrapResult::Ok(value),
-            Err(result_error) => UnwrapResult::Error(format!("{}\n{result_error:?}", error.to_string())),
+            Err(result_error) => {
+                UnwrapResult::Error(format!("{}\n{result_error:?}", error.to_string()))
+            }
         }
     }
 }

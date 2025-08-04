@@ -21,7 +21,8 @@ pub fn plugin(app: &mut App) {
     .insert_resource(AmbientLight {
         brightness: 0.0,
         ..default()
-    }).init_resource::<CameraFollow>();
+    })
+    .init_resource::<CameraFollow>();
 }
 
 /// Stops a gltf scene from casting shadows.
@@ -57,9 +58,7 @@ impl<T> FromResidual for MaybeBad<T> {
 }
 
 impl FromResidual<Bad> for () {
-    fn from_residual(_: Bad) -> Self {
-        
-    }
+    fn from_residual(_: Bad) -> Self {}
 }
 
 impl<T> Try for MaybeBad<T> {
@@ -78,9 +77,9 @@ impl<T> Try for MaybeBad<T> {
     }
 }
 
-pub fn camera_follow(camera_follow: Res<CameraFollow>) {
-    let blah = MaybeBad(Some(0_i32));
-    let dah = blah?;
+pub fn camera_follow(camera_follow: Option<Res<CameraFollow>>) {
+    let entity_to_follow = camera_follow.else_warn("No CameraFollow resource.")?.0.else_return()?;
+    
 }
 
 pub fn move_camera_to_controlled(

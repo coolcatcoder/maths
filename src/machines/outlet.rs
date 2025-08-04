@@ -3,10 +3,7 @@ use std::num::NonZero;
 use avian3d::prelude::*;
 use bevy::prelude::*;
 
-use crate::{
-    error_handling::ToUnwrapResult,
-    machines::cable::Plug,
-};
+use crate::{error_handling::ToUnwrapResult, machines::cable::Plug};
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, (within_range, out_of_range, connect));
@@ -84,7 +81,7 @@ fn out_of_range(
                 .position(|entity| *entity == outlet_sensor_entity)
                 .else_return()?;
             plug.outlet_sensors_within_range.swap_remove(index);
-        })
+        });
 }
 
 fn connect(
@@ -92,30 +89,29 @@ fn connect(
     mut outlet_sensor: Query<&mut OutletSensor>,
     mut commands: Commands,
 ) {
-    plug.iter_mut()
-        .for_each(|(plug_entity, mut plug)| {
-            if plug.dragged || plug.outlet_sensor_connected_to.is_some() {
-                return;
-            }
+    plug.iter_mut().for_each(|(plug_entity, mut plug)| {
+        if plug.dragged || plug.outlet_sensor_connected_to.is_some() {
+            return;
+        }
 
-            let outlet_sensor_entity = *plug.outlet_sensors_within_range.first().else_return()?;
-            let mut outlet_sensor = outlet_sensor
-                .get_mut(outlet_sensor_entity)
-                .else_error("No outlet sensor.")?;
+        let outlet_sensor_entity = *plug.outlet_sensors_within_range.first().else_return()?;
+        let mut outlet_sensor = outlet_sensor
+            .get_mut(outlet_sensor_entity)
+            .else_error("No outlet sensor.")?;
 
-            if let Some(max_plugs) = outlet_sensor.max_plugs
-                && u8::from(max_plugs) as usize == outlet_sensor.plugs.len()
-            {
-                return;
-            }
+        if let Some(max_plugs) = outlet_sensor.max_plugs
+            && u8::from(max_plugs) as usize == outlet_sensor.plugs.len()
+        {
+            return;
+        }
 
-            outlet_sensor.plugs.push(plug_entity);
-            plug.outlet_sensor_connected_to = Some(outlet_sensor_entity);
-            commands.entity(plug.joint).insert(
-                DistanceJoint::new(outlet_sensor.root, plug_entity)
-                    .with_rest_length(outlet_sensor.rest_length)
-                    .with_compliance(0.),
-            );
-            info!("Connected!");
-        });
+        outlet_sensor.plugs.push(plug_entity);
+        plug.outlet_sensor_connected_to = Some(outlet_sensor_entity);
+        commands.entity(plug.joint).insert(
+            DistanceJoint::new(outlet_sensor.root, plug_entity)
+                .with_rest_length(outlet_sensor.rest_length)
+                .with_compliance(0.),
+        );
+        info!("Connected!");
+    });
 }

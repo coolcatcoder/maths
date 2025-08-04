@@ -55,7 +55,9 @@ fn on_enter(
             _ => continue,
         };
 
-        let mut collision_layers = collision_layers.get_mut(collider).else_warn("Couldn't get collision layers of collider entering area.")?;
+        let mut collision_layers = collision_layers
+            .get_mut(collider)
+            .else_warn("Couldn't get collision layers of collider entering area.")?;
         collision_layers.memberships.remove(CollisionLayer::Floor);
         collision_layers.filters.remove(CollisionLayer::Floor);
     }

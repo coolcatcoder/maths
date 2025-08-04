@@ -9,7 +9,6 @@
 
 use bevy::{
     dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
-    ecs::error::GLOBAL_ERROR_HANDLER,
     prelude::*,
 };
 

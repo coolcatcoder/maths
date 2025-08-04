@@ -2,7 +2,7 @@ use crate::{
     error_handling::ToUnwrapResult,
     instantiate::{Config, GetOrInsert},
     machines::outlet::OutletSensor,
-    mouse::{drag, Interactable},
+    mouse::{Interactable, drag},
     physics::CollisionLayer,
     propagate::Propagate,
     render::ComesFromRootEntity,
