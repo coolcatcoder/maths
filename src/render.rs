@@ -77,9 +77,21 @@ impl<T> Try for MaybeBad<T> {
     }
 }
 
-pub fn camera_follow(camera_follow: Option<Res<CameraFollow>>) {
-    let entity_to_follow = camera_follow.else_warn("No CameraFollow resource.")?.0.else_return()?;
-    
+pub fn camera_follow(
+    camera_follow: Option<Res<CameraFollow>>,
+    to_follow: Query<&Transform, Without<Camera>>,
+    mut camera: Query<&mut Transform, With<Camera>>,
+) {
+    let entity_to_follow = camera_follow
+        .else_warn("No CameraFollow resource.")?
+        .0
+        .else_return()?;
+    let transform_to_follow = to_follow
+        .get(entity_to_follow)
+        .else_error("Entity to follow does not have a transform.")?;
+    let transform_camera = camera.single_mut().else_error("Could not get camera.")?;
+
+    //transform_camera.translation +=
 }
 
 pub fn move_camera_to_controlled(

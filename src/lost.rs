@@ -1,9 +1,13 @@
-use std::ops::{Add, Div, Mul, Sub};
+use std::{marker::PhantomData, ops::{Add, Div, Mul, Sub}};
 
 // TODO: Anything in here must be removed eventually.
-use crate::{creatures::tester::Tester, mind_control::Controlled, physics::CollisionLayer};
-use avian3d::prelude::{AngularVelocity, CollisionLayers, MassPropertiesBundle};
-use bevy::prelude::*;
+use crate::{
+    creatures::tester::Tester,
+    mind_control::Controlled,
+    physics::{CollisionLayer, common_properties::AIR_RESISTANCE},
+};
+use avian3d::prelude::{AngularVelocity, CollisionLayers, Mass, MassPropertiesBundle, RigidBody};
+use bevy::{ecs::{component::HookContext, world::DeferredWorld}, prelude::*};
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Startup, testing);
@@ -37,6 +41,123 @@ fn testing(mut commands: Commands) {
         ),
         Transform::from_xyz(-5., 0.5, 0.),
     ));
+
+    let mut tester = commands.spawn(CollisionLayers::new(
+        [CollisionLayer::Default, CollisionLayer::Floor],
+        [
+            CollisionLayer::Default,
+            CollisionLayer::Floor,
+            CollisionLayer::Cable,
+        ],
+    ));
+    let blah = tester.join_group(PhysicsDynamic);
+
+    //let cable = commands.spawn_ext(()).id();
+    //let plug_1 = commands.spawn_ext(()).relegate_despawn(cable);
+
+    let plug_1 = commands.spawn(()).id();
+    let plug_2 = commands.spawn(()).id();
+    let wire = commands.spawn(()).id();
+
+    commands.spawn((Cable, ExternalComponent::<Wire, Cable>::on(wire)));
+}
+
+#[derive(Component)]
+struct Cable;
+
+#[derive(Component)]
+struct Plug;
+
+#[derive(Component)]
+struct Wire;
+
+fn cable_stuff(cables: Query<&ExternalComponent<Wire, Cable>>, wires: Query<&Wire>) {
+    for wire in cables {
+        let wire = wire.get(&wires);
+    }
+}
+
+#[derive(Component)]
+#[component(on_remove = Self::on_remove)]
+pub struct ExternalComponent<C: Component, M>{
+    target: Entity,
+    //observer: Entity,
+    phantom: PhantomData<(C, M)>,
+}
+impl<C: Component, M> ExternalComponent<C, M> {
+    fn on(target: Entity) -> Self {
+        Self {
+            target,
+            phantom: PhantomData,
+        }
+    }
+
+    fn on_add(mut world: DeferredWorld, context: HookContext) {
+        //let mut observer = Observer::new(|trigger: Trigger<OnRemove, C>| {}).watch_entity(entity);
+        //let mut commands = world.commands();
+    }
+    fn on_remove(world: DeferredWorld, context: HookContext) {
+        //world.commands()
+    }
+}
+
+trait SpawnExt {
+    fn spawn_ext<T: Bundle>(&mut self, bundle: T) -> EntityCommandsExt<'_, true>;
+}
+
+impl SpawnExt for Commands<'_, '_> {
+    fn spawn_ext<T: Bundle>(&mut self, bundle: T) -> EntityCommandsExt<'_, true> {
+        EntityCommandsExt(self.spawn(bundle))
+    }
+}
+
+struct EntityCommandsExt<'a, const CAN_DESPAWN: bool>(EntityCommands<'a>);
+
+impl<'a> EntityCommandsExt<'a, true> {
+    // CAN_DESPAWN should be true or false, as both are correct!!!!
+    fn relegate_despawn(self, bearer: EntityWithPermissions<true>) -> EntityCommandsExt<'a, false> {
+        todo!("Give bearer the responsibility to despawn this entity.");
+        EntityCommandsExt(self.0)
+    }
+}
+
+// Wrong way? Create entities from bottom up instead perhaps?
+//fn create_sub_entity(&mut EntityCommands) -> &mut EntityCommands {}
+
+struct EntityWithPermissions<const CAN_DESPAWN: bool>(Entity);
+
+trait JoinGroup {
+    fn join_group<Group: ComponentGroup>(&mut self, group: Group);
+}
+
+impl JoinGroup for EntityCommands<'_> {
+    fn join_group<Group: ComponentGroup>(&mut self, group: Group) {
+        group.apply(self);
+    }
+}
+
+trait ComponentGroup {
+    fn apply(self, entity_commands: &mut EntityCommands<'_>);
+}
+
+struct PhysicsDynamic;
+impl ComponentGroup for PhysicsDynamic {
+    fn apply(self, entity_commands: &mut EntityCommands<'_>) {
+        entity_commands.insert_if_new((RigidBody::Dynamic, AIR_RESISTANCE, Mass(10.)));
+    }
+}
+
+trait Bad {}
+
+struct One;
+struct Two;
+
+impl<T> Bad for T {}
+
+fn bad() {
+    let one = One;
+    let two = Two;
+    let weird: [&dyn Bad; _] = [&one, &two];
 }
 
 pub fn change_range<
