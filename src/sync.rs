@@ -1,4 +1,5 @@
 use crate::error_handling::ToUnwrapResult;
+use crate::export_type;
 use bevy::prelude::*;
 
 pub fn plugin(app: &mut App) {
@@ -46,3 +47,20 @@ fn sync_rotation(
         transform.rotation = target.rotation;
     }
 }
+
+pub use crate::gather::bindings::*;
+pub use crate::gather::bindings::*;
+pub use crate::gather::bindings::*;
+pub use crate::gather::bindings::*;
+pub use crate::gather::bindings::*;
+
+pub type B244 = (i32,);
+
+procedural_macros::line_identifier! {
+    pub type BLINE = (String,);
+    pub type BLINE = (u16,);
+}
+
+export_type!(Transform);
+
+pub type B245 = (f32,);

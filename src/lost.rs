@@ -1,4 +1,8 @@
-use std::{marker::PhantomData, ops::{Add, Div, Mul, Sub}};
+use std::{
+    any::{Any, TypeId},
+    marker::PhantomData,
+    ops::{Add, Deref, DerefMut, Div, Mul, Sub},
+};
 
 // TODO: Anything in here must be removed eventually.
 use crate::{
@@ -7,10 +11,18 @@ use crate::{
     physics::{CollisionLayer, common_properties::AIR_RESISTANCE},
 };
 use avian3d::prelude::{AngularVelocity, CollisionLayers, Mass, MassPropertiesBundle, RigidBody};
-use bevy::{ecs::{component::HookContext, world::DeferredWorld}, prelude::*};
+use bevy::{
+    ecs::{
+        component::HookContext,
+        query::{QueryData, QueryFilter},
+        system::SystemParam,
+        world::DeferredWorld,
+    },
+    prelude::*,
+};
 
 pub fn plugin(app: &mut App) {
-    app.add_systems(Startup, testing);
+    app.add_systems(Startup, (testing, some_system));
 }
 
 fn testing(mut commands: Commands) {
@@ -59,7 +71,7 @@ fn testing(mut commands: Commands) {
     let plug_2 = commands.spawn(()).id();
     let wire = commands.spawn(()).id();
 
-    commands.spawn((Cable, ExternalComponent::<Wire, Cable>::on(wire)));
+    commands.spawn((Cable, ExternalComponents::<Wire, Cable>::on(wire)));
 }
 
 #[derive(Component)]
@@ -71,20 +83,242 @@ struct Plug;
 #[derive(Component)]
 struct Wire;
 
-fn cable_stuff(cables: Query<&ExternalComponent<Wire, Cable>>, wires: Query<&Wire>) {
+fn cable_stuff(cables: Query<&ExternalComponents<Wire, Cable>>, wires: Query<&Wire>) {
     for wire in cables {
-        let wire = wire.get(&wires);
+        //let wire = wire.get(&wires);
     }
 }
 
+trait Subset {}
+
+//const TEST_TYPE: TypeId = TypeId::of::<i32>();
+
+// You can not have a tuple struct nor unit struct with the same identifier as a
+// constant, so this can only work with a regular struct.
+// struct Something {
+//     blah: bool,
+// }
+// // Once we have const traits, then you can hash a type id to get a unique
+// // integer at compile time. (adt_const_params would allow the storage of
+// TypeId // as a const directly, but it seems likely that const traits will
+// stabilise // first.)
+// const Something: u32 = 1;
+
+// struct Other {}
+// const Other: u32 = 2;
+
+// // 0 is no
+// struct WeirdTuple<
+//     const A: u32 = 0,
+//     const B: u32 = 0,
+//     const C: u32 = 0,
+//     const D: u32 = 0,
+//     const E: u32 = 0,
+//     const F: u32 = 0,
+//     const G: u32 = 0,
+// >;
+
+// type Example = WeirdTuple<{ Something }, { Other }, { Something }>;
+
+/// Signifies that a slot in the weird tuple is empty.
+struct Empty;
+struct EmptySlot;
+/// A tuple struct of fixed arity, but with defaults for every generic, which
+/// almost makes it seem like it can support any arity.
+struct WeirdTuple<
+    A = Empty,
+    B = Empty,
+    C = Empty,
+    D = Empty,
+    E = Empty,
+    F = Empty,
+    G = Empty,
+    H = Empty,
+>(A, B, C, D, E, F, G, H);
+
+macro_rules! variadic {
+    (
+        struct $identifier:ident
+        <$($generic:ident,)* ...Variadic>
+        (
+            $(
+                $(PhantomData<(...$variadic_wrapped:ident)>)?
+                $(...$variadic_field:ident)?
+                $($field_type:ident)?
+                ,
+            )*
+            $(,)?
+        );
+    ) => {
+        struct $identifier<$($generic,)*
+        Variadic=crate::lost::EmptySlot,
+        VariadicB=crate::lost::EmptySlot,
+        VariadicC=crate::lost::EmptySlot,
+        VariadicD=crate::lost::EmptySlot,
+        VariadicE=crate::lost::EmptySlot,
+        VariadicF=crate::lost::EmptySlot,
+        VariadicG=crate::lost::EmptySlot,
+        VariadicH=crate::lost::EmptySlot,
+        >(
+            $(
+                $(Variadic<(
+                    $variadic_wrapped,
+                    VariadicB,
+                    VariadicC,
+                    VariadicD,
+                    VariadicE,
+                    VariadicF,
+                    VariadicG,
+                    VariadicH,
+                )>)?
+                $(
+                    $variadic_field,
+                    VariadicB,
+                    VariadicC,
+                    VariadicD,
+                    VariadicE,
+                    VariadicF,
+                    VariadicG,
+                    VariadicH,
+                )?
+                $($field_type)?
+            ),*
+            // $($wrapper:ident<
+            //     $variadic_wrapped,
+            //     VariadicB,
+            //     VariadicC,
+            //     VariadicD,
+            //     VariadicE,
+            //     VariadicF,
+            //     VariadicG,
+            //     VariadicH,
+            // >)?
+        );
+    };
+}
+
+#[derive(Component)]
+struct TestComponent {
+    bad: i32,
+}
+
+//variadic! {struct TestTuple<...Variadic>(PhantomData<...Variadic>,);}
+//#[variadic]
+//struct TestTuple<A, B>(A, B);
+
+trait ComponentOrEmpty {}
+impl ComponentOrEmpty for Empty {}
+impl<T: Component> ComponentOrEmpty for T {}
+
+/// Implemented on weird tuples where all non-empty slots implement Component.
+trait WeirdBundle {}
+impl<T: Component> WeirdBundle for T {}
+impl<
+    A: ComponentOrEmpty,
+    B: ComponentOrEmpty,
+    C: ComponentOrEmpty,
+    D: ComponentOrEmpty,
+    E: ComponentOrEmpty,
+    F: ComponentOrEmpty,
+    G: ComponentOrEmpty,
+    H: ComponentOrEmpty,
+> WeirdBundle for WeirdTuple<A, B, C, D, E, F, G, H>
+{
+}
+
+// Asserting that this all works.
+const fn is_weird_bundle<T: WeirdBundle>() {}
+const _: () = is_weird_bundle::<Transform>();
+const _: () = is_weird_bundle::<WeirdTuple<Transform, Transform, Transform>>();
+
+struct Data<A = Empty, B = Empty, C = Empty, D = Empty, E = Empty, F = Empty, G = Empty, H = Empty>(
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+);
+struct Filter<
+    A = Empty,
+    B = Empty,
+    C = Empty,
+    D = Empty,
+    E = Empty,
+    F = Empty,
+    G = Empty,
+    H = Empty,
+>(A, B, C, D, E, F, G, H);
+
+trait ToData {
+    type Output: QueryData;
+}
+impl<A: QueryData> ToData for Data<A> {
+    type Output = A;
+}
+impl<A: QueryData, B: QueryData> ToData for Data<A, B> {
+    type Output = (A, B);
+}
+
+trait ToFilter {
+    type Output: QueryFilter;
+}
+impl ToFilter for Filter {
+    type Output = ();
+}
+
+#[derive(SystemParam)]
+struct WeirdQuery<'w, 's, D: ToData + 'static, F: ToFilter + 'static = Filter>(
+    Query<'w, 's, <D as ToData>::Output, <F as ToFilter>::Output>,
+)
+where
+    D::Output: 'static,
+    F::Output: 'static;
+impl<'w, 's, D: ToData + 'static, F: ToFilter + 'static> Deref for WeirdQuery<'w, 's, D, F> {
+    type Target = Query<'w, 's, <D as ToData>::Output, <F as ToFilter>::Output>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+impl<'w, 's, D: ToData + 'static, F: ToFilter + 'static> DerefMut for WeirdQuery<'w, 's, D, F> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+fn some_system(query: WeirdQuery<Data<Entity, &Transform>>) {
+    query.iter().for_each(|(entity, transform)| todo!());
+}
+
+// struct SomeComponentManager;
+
+// impl Deref for SomeComponentManager {
+//     type Target = fn(u32)->SomeComponent;
+//     fn deref(&self) -> &Self::Target {
+//         &((|zero| SomeComponent { zero, }) as fn(u32)->SomeComponent)
+//     }
+// }
+
+// const SomeComponent: SomeComponentManager = SomeComponentManager;
+// // Showing you can use it like a normal tuple struct:
+// fn testing_some_component() {
+//     let _: SomeComponent = SomeComponent(0);
+// }
+
+struct Weird<const A: u32 = 0, const B: u32 = 0>;
+
+impl Weird<0, 0> {}
+
 #[derive(Component)]
 #[component(on_remove = Self::on_remove)]
-pub struct ExternalComponent<C: Component, M>{
+pub struct ExternalComponents<C: Component, M> {
     target: Entity,
     //observer: Entity,
     phantom: PhantomData<(C, M)>,
 }
-impl<C: Component, M> ExternalComponent<C, M> {
+impl<C: Component, M> ExternalComponents<C, M> {
     fn on(target: Entity) -> Self {
         Self {
             target,
@@ -93,8 +327,9 @@ impl<C: Component, M> ExternalComponent<C, M> {
     }
 
     fn on_add(mut world: DeferredWorld, context: HookContext) {
-        //let mut observer = Observer::new(|trigger: Trigger<OnRemove, C>| {}).watch_entity(entity);
-        //let mut commands = world.commands();
+        //let mut observer = Observer::new(|trigger: Trigger<OnRemove, C>|
+        // {}).watch_entity(entity); let mut commands =
+        // world.commands();
     }
     fn on_remove(world: DeferredWorld, context: HookContext) {
         //world.commands()

@@ -1,4 +1,5 @@
 #![feature(try_trait_v2)]
+#![feature(macro_attr)]
 #![warn(clippy::pedantic)]
 #![allow(clippy::needless_pass_by_value)]
 #![allow(clippy::type_complexity)]
@@ -12,6 +13,17 @@ use bevy::{
     prelude::*,
 };
 
+/// The prelude for bevy, but slightly modified.
+mod bevy_prelude {
+    pub use bevy::prelude::*;
+}
+
+mod gather;
+
+plugin_module!(
+    sync
+);
+
 mod areas;
 mod controls;
 mod creatures;
@@ -24,7 +36,15 @@ mod mouse;
 mod physics;
 mod propagate;
 mod render;
-mod sync;
+//mod sync;
+
+type FromSync = gather_types!(sync);
+
+trait Is<T> {}
+impl<T> Is<T> for T {}
+
+const fn tester<A, B: Is<A>>() {}
+//const _:() = tester::<FromSync, (i32, (f32, sync::Wow))>();
 
 const FPS_DEBUG: bool = true;
 
@@ -40,10 +60,10 @@ fn main() {
         mind_control::plugin,
         machines::plugin,
         mouse::plugin,
-        sync::plugin,
         physics::plugin,
         areas::plugin,
         instantiate::plugin,
+        plugins_in_modules,
     ));
 
     if FPS_DEBUG {
