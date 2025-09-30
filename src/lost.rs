@@ -213,18 +213,8 @@ impl<T: Component> ComponentOrEmpty for T {}
 /// Implemented on weird tuples where all non-empty slots implement Component.
 trait WeirdBundle {}
 impl<T: Component> WeirdBundle for T {}
-impl<
-    A: ComponentOrEmpty,
-    B: ComponentOrEmpty,
-    C: ComponentOrEmpty,
-    D: ComponentOrEmpty,
-    E: ComponentOrEmpty,
-    F: ComponentOrEmpty,
-    G: ComponentOrEmpty,
-    H: ComponentOrEmpty,
-> WeirdBundle for WeirdTuple<A, B, C, D, E, F, G, H>
-{
-}
+#[procedural_macros::variadic]
+impl<VariadicBad: ComponentOrEmpty + ComponentOrEmpty> WeirdBundle for WeirdTuple<VariadicBad> {}
 
 // Asserting that this all works.
 const fn is_weird_bundle<T: WeirdBundle>() {}

@@ -20,9 +20,7 @@ mod bevy_prelude {
 
 mod gather;
 
-plugin_module!(
-    sync
-);
+plugin_module!(sync);
 
 mod areas;
 mod controls;
