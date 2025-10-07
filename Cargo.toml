@@ -7,7 +7,7 @@ edition = "2024"
 members = ["procedural_macros"]
 
 [dependencies]
-bevy = { version = "0.16.1", default-features = false, features = [
+bevy = { version = "0.17.2", default-features = false, features = [
     "bevy_asset",
     "bevy_color",
     "bevy_core_pipeline",
@@ -18,6 +18,8 @@ bevy = { version = "0.16.1", default-features = false, features = [
     "bevy_render",
     "bevy_text",
     "bevy_ui",
+    "bevy_ui_render",
+    "bevy_ui_picking_backend",
     "bevy_window",
     "bevy_winit",
     "multi_threaded",
@@ -25,14 +27,20 @@ bevy = { version = "0.16.1", default-features = false, features = [
     "sysinfo_plugin",
     "tonemapping_luts",
     "x11",
-    "configurable_error_handler",
     "bevy_mesh_picking_backend",
     "bevy_dev_tools",
-    "default_font"
+    "default_font",
+    "zstd_c",
+    "bevy_anti_alias",
+    "bevy_post_process",
+    "reflect_auto_register",
+    "experimental_bevy_feathers",
+    "bevy_input_focus",
+    "debug"
     ]}
-leafwing-input-manager = "0.17.1"
-avian3d = "0.3.1"
-bevy_mod_outline = "0.10.3"
+leafwing-input-manager = "0.18.0"
+avian3d = { git = "https://github.com/Jondolf/avian" }
+bevy_mod_outline = { path="../bevy_mod_outline_0_17_patching" }
 const-str = "0.7.0"
 serde_json = "1.0.145"
 procedural_macros = { path = "procedural_macros" }

@@ -2,7 +2,8 @@ use std::num::NonZero;
 
 use avian3d::prelude::{Collider, RigidBody, Sensor};
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    app::Propagate,
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
 };
 
@@ -11,7 +12,6 @@ use crate::{
         outlet::{OutletSensor, OutletSensorEntity},
         power::{Powered, TakesPower},
     },
-    propagate::Propagate,
     render::SceneNotShadowCaster,
     sync::{SyncRotation, SyncTranslation},
 };

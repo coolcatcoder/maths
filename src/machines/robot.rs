@@ -3,11 +3,10 @@ use crate::{
     instantiate::Config,
     lost::{change_range, move_towards_single_axis},
     physics::common_properties::AIR_RESISTANCE,
-    propagate::Propagate,
     render::ComesFromRootEntity,
 };
 use avian3d::prelude::*;
-use bevy::prelude::*;
+use bevy::{app::Propagate, prelude::*};
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, hover);

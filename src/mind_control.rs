@@ -1,5 +1,5 @@
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
 };
 use bevy_mod_outline::OutlineVolume;
@@ -41,23 +41,28 @@ fn controlled_on_add(mut world: DeferredWorld, context: HookContext) {
     });
 }
 
-pub fn take_control_on_click(click: Trigger<Pointer<Click>>, mut commands: Commands) {
-    commands.entity(click.target()).insert(Controlled);
+pub fn take_control_on_click(click: On<Pointer<Click>>, mut commands: Commands) {
+    commands
+        .entity(click.event().event_target())
+        .insert(Controlled);
 }
 
 pub fn outline_on_over(
-    over: Trigger<Pointer<Over>>,
+    over: On<Pointer<Over>>,
     mut outline: Query<&mut OutlineVolume, Without<Controlled>>,
 ) {
-    let mut outline = outline.get_mut(over.target()).else_return()?;
+    let mut outline = outline.get_mut(over.event().event_target()).else_return()?;
     outline.visible = true;
     outline.colour = Color::srgb(0., 1., 1.);
     outline.width = 3.;
 }
 
 pub fn remove_outline_on_out(
-    out: Trigger<Pointer<Out>>,
+    out: On<Pointer<Out>>,
     mut outline: Query<&mut OutlineVolume, Without<Controlled>>,
 ) {
-    outline.get_mut(out.target()).else_return()?.visible = false;
+    outline
+        .get_mut(out.event().event_target())
+        .else_return()?
+        .visible = false;
 }

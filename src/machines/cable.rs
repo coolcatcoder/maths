@@ -4,11 +4,10 @@ use crate::{
     machines::outlet::OutletSensor,
     mouse::{Interactable, drag},
     physics::CollisionLayer,
-    propagate::Propagate,
     render::ComesFromRootEntity,
 };
 use avian3d::prelude::*;
-use bevy::prelude::*;
+use bevy::{app::Propagate, prelude::*};
 
 pub fn plugin(_: &mut App) {
     //app.add_systems(Update, load);
@@ -93,8 +92,8 @@ impl Config for CableConfig {
 
         commands.spawn(
             SphericalJoint::new(head, previous)
-                .with_local_anchor_1(Vec3::NEG_Y * 0.2)
-                .with_local_anchor_2(Vec3::Y * Self::CABLE_RADIUS)
+                .with_local_anchor1(Vec3::NEG_Y * 0.2)
+                .with_local_anchor2(Vec3::Y * Self::CABLE_RADIUS)
                 .with_compliance(Self::PLUG_COMPLIANCE),
         );
         commands.spawn(
@@ -128,8 +127,8 @@ impl Config for CableConfig {
 
             commands.spawn(
                 SphericalJoint::new(previous, current)
-                    .with_local_anchor_1(Vec3::NEG_Y * Self::CABLE_RADIUS)
-                    .with_local_anchor_2(Vec3::Y * Self::CABLE_RADIUS)
+                    .with_local_anchor1(Vec3::NEG_Y * Self::CABLE_RADIUS)
+                    .with_local_anchor2(Vec3::Y * Self::CABLE_RADIUS)
                     .with_compliance(Self::CABLE_COMPLIANCE),
             );
             commands.spawn(
@@ -175,8 +174,8 @@ impl Config for CableConfig {
 
         commands.spawn(
             SphericalJoint::new(previous, tail)
-                .with_local_anchor_1(Vec3::Y * Self::CABLE_RADIUS)
-                .with_local_anchor_2(Vec3::NEG_Y * 0.2)
+                .with_local_anchor1(Vec3::Y * Self::CABLE_RADIUS)
+                .with_local_anchor2(Vec3::NEG_Y * 0.2)
                 .with_compliance(Self::PLUG_COMPLIANCE),
         );
         commands.spawn(
@@ -196,12 +195,12 @@ pub struct Plug {
 }
 
 pub fn drag_start(
-    drag_start: Trigger<Pointer<DragStart>>,
+    drag_start: On<Pointer<DragStart>>,
     mut plug: Query<&mut Plug>,
     mut outlet_sensor: Query<&mut OutletSensor>,
     mut commands: Commands,
 ) {
-    let target = drag_start.target();
+    let target = drag_start.event().event_target();
     let mut plug = plug
         .get_mut(target)
         .else_warn("Plug doesn't have a Plug.")?;
@@ -221,9 +220,9 @@ pub fn drag_start(
     outlet_sensor.plugs.swap_remove(position);
 }
 
-pub fn drag_end(drag_end: Trigger<Pointer<DragEnd>>, mut plug: Query<&mut Plug>) {
+pub fn drag_end(drag_end: On<Pointer<DragEnd>>, mut plug: Query<&mut Plug>) {
     let mut plug = plug
-        .get_mut(drag_end.target())
+        .get_mut(drag_end.event().event_target())
         .else_warn("Plug doesn't have a Plug.")?;
 
     plug.dragged = false;

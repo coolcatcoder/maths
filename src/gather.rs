@@ -1,7 +1,10 @@
+#![allow(clippy::crate_in_macro_def)]
+
 #[macro_export]
 macro_rules! export_type {
     ($export:ty) => {
         procedural_macros::line_identifier! {
+            #[allow(dead_code)]
             pub type BLINE = ($export,);
         }
     };
@@ -18,6 +21,7 @@ macro_rules! plugin_module {
             $(
                 $module::plugin(app);
                 $module::plugins_in_modules(app);
+                app.add_systems(Update, $module::patch);
             )*
         }
     };
@@ -55,6 +59,7 @@ impl<A, B, C, D> With<(A, B)> for (C, D) {
     type Out = (C, (D, (A, B)));
 }
 
+#[allow(unused_imports)]
 pub mod bindings {
     pub fn plugin(_: &mut bevy::prelude::App) {}
 
@@ -68,6 +73,7 @@ pub mod bindings {
         };
     }
 
+    #[allow(dead_code)]
     pub type Unit = ();
 
     create!(

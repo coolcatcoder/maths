@@ -6,12 +6,11 @@ use crate::{
         power::Energy,
     },
     mouse::Interactable,
-    propagate::Propagate,
     render::ComesFromRootEntity,
     sync::{SyncRotation, SyncTranslation},
 };
 use avian3d::prelude::{Collider, MassPropertiesBundle, RigidBody};
-use bevy::prelude::*;
+use bevy::{app::Propagate, prelude::*};
 
 pub fn plugin(app: &mut App) {
     app.add_systems(Update, (load, charge_indicator));

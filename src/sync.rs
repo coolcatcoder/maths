@@ -1,13 +1,13 @@
+pub use crate::bevy_prelude::*;
 use crate::error_handling::ToUnwrapResult;
 use crate::export_type;
-use bevy::prelude::*;
 
 pub fn plugin(app: &mut App) {
     app.add_systems(
         PostUpdate,
         (sync_rotation, sync_translation)
             .chain()
-            .before(TransformSystem::TransformPropagate),
+            .before(TransformSystems::Propagate),
     );
 }
 
@@ -47,12 +47,6 @@ fn sync_rotation(
         transform.rotation = target.rotation;
     }
 }
-
-pub use crate::gather::bindings::*;
-pub use crate::gather::bindings::*;
-pub use crate::gather::bindings::*;
-pub use crate::gather::bindings::*;
-pub use crate::gather::bindings::*;
 
 pub type B244 = (i32,);
 

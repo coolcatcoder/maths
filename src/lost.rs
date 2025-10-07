@@ -1,5 +1,7 @@
+// crime
+#![allow(dead_code)]
+#![allow(clippy::crate_in_macro_def)]
 use std::{
-    any::{Any, TypeId},
     marker::PhantomData,
     ops::{Add, Deref, DerefMut, Div, Mul, Sub},
 };
@@ -13,7 +15,7 @@ use crate::{
 use avian3d::prelude::{AngularVelocity, CollisionLayers, Mass, MassPropertiesBundle, RigidBody};
 use bevy::{
     ecs::{
-        component::HookContext,
+        lifecycle::HookContext,
         query::{QueryData, QueryFilter},
         system::SystemParam,
         world::DeferredWorld,
@@ -62,13 +64,13 @@ fn testing(mut commands: Commands) {
             CollisionLayer::Cable,
         ],
     ));
-    let blah = tester.join_group(PhysicsDynamic);
+    tester.join_group(PhysicsDynamic);
 
     //let cable = commands.spawn_ext(()).id();
     //let plug_1 = commands.spawn_ext(()).relegate_despawn(cable);
 
-    let plug_1 = commands.spawn(()).id();
-    let plug_2 = commands.spawn(()).id();
+    let _plug_1 = commands.spawn(()).id();
+    let _plug_2 = commands.spawn(()).id();
     let wire = commands.spawn(()).id();
 
     commands.spawn((Cable, ExternalComponents::<Wire, Cable>::on(wire)));
@@ -214,7 +216,10 @@ impl<T: Component> ComponentOrEmpty for T {}
 trait WeirdBundle {}
 impl<T: Component> WeirdBundle for T {}
 #[procedural_macros::variadic]
-impl<VariadicBad: ComponentOrEmpty + ComponentOrEmpty> WeirdBundle for WeirdTuple<VariadicBad> {}
+impl<VariadicBad: ComponentOrEmpty + ComponentOrEmpty> WeirdBundle
+    for WeirdTuple<Bad0, Bad1, Bad2, Bad3, Bad4, Bad5, Bad6, Bad7>
+{
+}
 
 // Asserting that this all works.
 const fn is_weird_bundle<T: WeirdBundle>() {}
@@ -272,7 +277,7 @@ impl<'w, 's, D: ToData + 'static, F: ToFilter + 'static> Deref for WeirdQuery<'w
         &self.0
     }
 }
-impl<'w, 's, D: ToData + 'static, F: ToFilter + 'static> DerefMut for WeirdQuery<'w, 's, D, F> {
+impl<D: ToData + 'static, F: ToFilter + 'static> DerefMut for WeirdQuery<'_, '_, D, F> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
     }
@@ -316,12 +321,12 @@ impl<C: Component, M> ExternalComponents<C, M> {
         }
     }
 
-    fn on_add(mut world: DeferredWorld, context: HookContext) {
-        //let mut observer = Observer::new(|trigger: Trigger<OnRemove, C>|
+    fn on_add(_world: DeferredWorld, _context: HookContext) {
+        //let mut observer = Observer::new(|On: On<OnRemove, C>|
         // {}).watch_entity(entity); let mut commands =
         // world.commands();
     }
-    fn on_remove(world: DeferredWorld, context: HookContext) {
+    fn on_remove(_world: DeferredWorld, _context: HookContext) {
         //world.commands()
     }
 }
@@ -370,19 +375,6 @@ impl ComponentGroup for PhysicsDynamic {
     fn apply(self, entity_commands: &mut EntityCommands<'_>) {
         entity_commands.insert_if_new((RigidBody::Dynamic, AIR_RESISTANCE, Mass(10.)));
     }
-}
-
-trait Bad {}
-
-struct One;
-struct Two;
-
-impl<T> Bad for T {}
-
-fn bad() {
-    let one = One;
-    let two = Two;
-    let weird: [&dyn Bad; _] = [&one, &two];
 }
 
 pub fn change_range<

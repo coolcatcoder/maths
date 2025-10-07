@@ -4,11 +4,11 @@ use bevy::prelude::*;
 
 pub mod common_properties;
 
-const DEBUG: bool = true;
+const DEVELOP_OVERRIDE: bool = false;
 
 pub fn plugin(app: &mut App) {
-    if DEBUG {
-        app.add_plugins(PhysicsDebugPlugin::default());
+    if DEVELOP_OVERRIDE || crate::DEVELOP {
+        app.add_plugins(PhysicsDebugPlugin);
     }
     app.add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, create_floor)

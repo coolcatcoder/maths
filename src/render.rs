@@ -1,22 +1,20 @@
 use std::ops::{ControlFlow, FromResidual, Try};
 
-use crate::{
-    error_handling::ToUnwrapResult, mind_control::Controlled, propagate::HierarchyPropagatePlugin,
-};
-use bevy::{pbr::NotShadowCaster, prelude::*};
+use crate::{error_handling::ToUnwrapResult, mind_control::Controlled};
+use bevy::{app::HierarchyPropagatePlugin, light::NotShadowCaster, prelude::*};
 
 pub mod outlines;
 
 pub fn plugin(app: &mut App) {
     app.add_plugins((
         outlines::plugin,
-        HierarchyPropagatePlugin::<SceneNotShadowCaster>::default(),
-        HierarchyPropagatePlugin::<ComesFromRootEntity>::default(),
+        HierarchyPropagatePlugin::<SceneNotShadowCaster>::new(Update),
+        HierarchyPropagatePlugin::<ComesFromRootEntity>::new(Update),
     ))
     .add_systems(Startup, spawn_camera)
     .add_systems(
         PostUpdate,
-        move_camera_to_controlled.before(TransformSystem::TransformPropagate),
+        move_camera_to_controlled.before(TransformSystems::Propagate),
     )
     .insert_resource(AmbientLight {
         brightness: 0.0,

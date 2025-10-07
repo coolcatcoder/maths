@@ -24,16 +24,21 @@ pub struct OutletSensor {
 fn within_range(
     mut outlet_sensor: Query<&OutletSensor>,
     mut plug: Query<&mut Plug>,
-    mut collisions_started: EventReader<CollisionStarted>,
+    mut collisions_started: MessageReader<CollisionStart>,
 ) {
-    for CollisionStarted(entity_1, entity_2) in collisions_started.read() {
+    for CollisionStart {
+        collider1,
+        collider2,
+        ..
+    } in collisions_started.read()
+    {
         let ((outlet_sensor_entity, _), (_, mut plug)) =
-            match (outlet_sensor.get_mut(*entity_1), plug.get_mut(*entity_2)) {
-                (Ok(outlet_sensor), Ok(plug)) => ((*entity_1, outlet_sensor), (*entity_2, plug)),
+            match (outlet_sensor.get_mut(*collider1), plug.get_mut(*collider2)) {
+                (Ok(outlet_sensor), Ok(plug)) => ((*collider1, outlet_sensor), (*collider2, plug)),
                 (Err(_), Err(_)) => {
-                    match (outlet_sensor.get_mut(*entity_2), plug.get_mut(*entity_1)) {
+                    match (outlet_sensor.get_mut(*collider2), plug.get_mut(*collider1)) {
                         (Ok(outlet_sensor), Ok(plug)) => {
-                            ((*entity_2, outlet_sensor), (*entity_1, plug))
+                            ((*collider2, outlet_sensor), (*collider1, plug))
                         }
                         _ => continue,
                     }
@@ -54,20 +59,23 @@ fn within_range(
 fn out_of_range(
     mut outlet_sensor: Query<&OutletSensor>,
     mut plug: Query<&mut Plug>,
-    mut collisions_started: EventReader<CollisionEnded>,
+    mut collisions_started: MessageReader<CollisionEnd>,
 ) {
-    collisions_started
-        .read()
-        .for_each(|CollisionEnded(entity_1, entity_2)| {
+    collisions_started.read().for_each(
+        |CollisionEnd {
+             collider1,
+             collider2,
+             ..
+         }| {
             let ((outlet_sensor_entity, _), (_, mut plug)) =
-                match (outlet_sensor.get_mut(*entity_1), plug.get_mut(*entity_2)) {
+                match (outlet_sensor.get_mut(*collider1), plug.get_mut(*collider2)) {
                     (Ok(outlet_sensor), Ok(plug)) => {
-                        ((*entity_1, outlet_sensor), (*entity_2, plug))
+                        ((*collider1, outlet_sensor), (*collider2, plug))
                     }
                     (Err(_), Err(_)) => {
-                        match (outlet_sensor.get_mut(*entity_2), plug.get_mut(*entity_1)) {
+                        match (outlet_sensor.get_mut(*collider2), plug.get_mut(*collider1)) {
                             (Ok(outlet_sensor), Ok(plug)) => {
-                                ((*entity_2, outlet_sensor), (*entity_1, plug))
+                                ((*collider2, outlet_sensor), (*collider1, plug))
                             }
                             _ => return,
                         }
@@ -81,7 +89,8 @@ fn out_of_range(
                 .position(|entity| *entity == outlet_sensor_entity)
                 .else_return()?;
             plug.outlet_sensors_within_range.swap_remove(index);
-        });
+        },
+    );
 }
 
 fn connect(
@@ -109,7 +118,7 @@ fn connect(
         plug.outlet_sensor_connected_to = Some(outlet_sensor_entity);
         commands.entity(plug.joint).insert(
             DistanceJoint::new(outlet_sensor.root, plug_entity)
-                .with_rest_length(outlet_sensor.rest_length)
+                .with_limits(outlet_sensor.rest_length, outlet_sensor.rest_length)
                 .with_compliance(0.),
         );
         info!("Connected!");

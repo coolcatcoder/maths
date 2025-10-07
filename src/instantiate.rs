@@ -1,20 +1,20 @@
 use bevy::{
-    ecs::query::{QueryData, ReadOnlyQueryData},
+    ecs::query::{QueryData, ReadOnlyQueryData, ReleaseStateQueryData},
     prelude::*,
 };
 
 pub fn plugin(_: &mut App) {}
 
 pub trait BundleThatCanBeQueried<const OVERLAP: bool = true>: Bundle {
-    type Query<'a>: ReadOnlyQueryData;
+    type Query<'a>: ReadOnlyQueryData + ReleaseStateQueryData;
 
-    fn components_to_bundle(components: <Self::Query<'_> as QueryData>::Item<'_>) -> Self;
+    fn components_to_bundle(components: <Self::Query<'_> as QueryData>::Item<'_, '_>) -> Self;
 }
 
 impl<A: Component + Clone> BundleThatCanBeQueried<false> for A {
     type Query<'a> = &'a A;
 
-    fn components_to_bundle(components: <Self::Query<'_> as QueryData>::Item<'_>) -> Self {
+    fn components_to_bundle(components: <Self::Query<'_> as QueryData>::Item<'_, '_>) -> Self {
         components.clone()
     }
 }
@@ -22,7 +22,7 @@ impl<A: Component + Clone> BundleThatCanBeQueried<false> for A {
 impl<A: Component + Clone, B: Component + Clone> BundleThatCanBeQueried for (A, B) {
     type Query<'a> = (&'a A, &'a B);
 
-    fn components_to_bundle(components: <Self::Query<'_> as QueryData>::Item<'_>) -> Self {
+    fn components_to_bundle(components: <Self::Query<'_> as QueryData>::Item<'_, '_>) -> Self {
         (components.0.clone(), components.1.clone())
     }
 }

@@ -13,14 +13,25 @@ use bevy::{
     prelude::*,
 };
 
+const DEVELOP: bool = true;
+
 /// The prelude for bevy, but slightly modified.
 mod bevy_prelude {
-    pub use bevy::prelude::*;
+    pub use bevy::{
+        ecs::{lifecycle::HookContext, world::DeferredWorld},
+        prelude::*,
+    };
+    pub fn plugin(_: &mut App) {}
+    pub fn plugins_in_modules(_: &mut App) {}
+    pub fn patch(_: Query<(&Name, &mut Transform), Added<Name>>) {}
+    pub use crate::error_handling::ToUnwrapResult;
+    pub use crate::gather::bindings::*;
+    pub use crate::plugin_module;
 }
 
 mod gather;
 
-plugin_module!(sync);
+plugin_module!(sync, editor);
 
 mod areas;
 mod controls;
@@ -32,7 +43,6 @@ mod machines;
 mod mind_control;
 mod mouse;
 mod physics;
-mod propagate;
 mod render;
 //mod sync;
 
@@ -44,7 +54,7 @@ impl<T> Is<T> for T {}
 const fn tester<A, B: Is<A>>() {}
 //const _:() = tester::<FromSync, (i32, (f32, sync::Wow))>();
 
-const FPS_DEBUG: bool = true;
+const FPS_DEBUG: bool = false;
 
 fn main() {
     let mut app = App::new();
@@ -74,6 +84,7 @@ fn main() {
                 text_color: Srgba::GREEN.into(),
                 refresh_interval: core::time::Duration::from_millis(100),
                 enabled: true,
+                ..default()
             },
         });
     }

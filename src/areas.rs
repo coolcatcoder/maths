@@ -1,9 +1,9 @@
 use avian3d::prelude::{
-    CollisionEnded, CollisionEventsEnabled, CollisionLayers, CollisionStarted, RigidBody, Sensor,
+    CollisionEnd, CollisionEventsEnabled, CollisionLayers, CollisionStart, RigidBody, Sensor,
 };
 use bevy::prelude::*;
 
-use crate::{error_handling::ToUnwrapResult, physics::CollisionLayer};
+use crate::{error_handling::ToUnwrapResult, physics::CollisionLayer, plugin_module};
 
 macro_rules! areas {
     ($($areas:ident),*) => {
@@ -24,10 +24,14 @@ macro_rules! areas {
 }
 
 areas!(test_area);
+mod feathers;
+
+plugin_module!(pub start);
 
 pub fn plugin(app: &mut App) {
     area_plugins(app);
-    app.add_systems(Startup, temp_load_all)
+    app.add_plugins(plugins_in_modules)
+        //.add_systems(Startup, temp_load_all)
         .add_systems(Update, (on_enter, on_exit));
 }
 
@@ -46,12 +50,17 @@ pub struct LoadArea;
 fn on_enter(
     areas: Query<(), With<LoadArea>>,
     mut collision_layers: Query<&mut CollisionLayers>,
-    mut collisions_started: EventReader<CollisionStarted>,
+    mut collisions_started: MessageReader<CollisionStart>,
 ) {
-    for CollisionStarted(entity_1, entity_2) in collisions_started.read() {
-        let (_, collider) = match (areas.get(*entity_1), areas.get(*entity_2)) {
-            (Ok(()), Err(_)) => (*entity_1, *entity_2),
-            (Err(_), Ok(())) => (*entity_2, *entity_1),
+    for CollisionStart {
+        collider1,
+        collider2,
+        ..
+    } in collisions_started.read()
+    {
+        let (_, collider) = match (areas.get(*collider1), areas.get(*collider2)) {
+            (Ok(()), Err(_)) => (*collider1, *collider2),
+            (Err(_), Ok(())) => (*collider2, *collider1),
             _ => continue,
         };
 
@@ -66,12 +75,17 @@ fn on_enter(
 fn on_exit(
     areas: Query<(), With<LoadArea>>,
     mut collision_layers: Query<&mut CollisionLayers>,
-    mut collisions_ended: EventReader<CollisionEnded>,
+    mut collisions_ended: MessageReader<CollisionEnd>,
 ) {
-    for CollisionEnded(entity_1, entity_2) in collisions_ended.read() {
-        let (_, collider) = match (areas.get(*entity_1), areas.get(*entity_2)) {
-            (Ok(()), Err(_)) => (*entity_1, *entity_2),
-            (Err(_), Ok(())) => (*entity_2, *entity_1),
+    for CollisionEnd {
+        collider1,
+        collider2,
+        ..
+    } in collisions_ended.read()
+    {
+        let (_, collider) = match (areas.get(*collider1), areas.get(*collider2)) {
+            (Ok(()), Err(_)) => (*collider1, *collider2),
+            (Err(_), Ok(())) => (*collider2, *collider1),
             _ => continue,
         };
 

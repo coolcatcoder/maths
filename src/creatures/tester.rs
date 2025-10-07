@@ -1,7 +1,7 @@
 use super::{BasicHorizontalControl, Creature, LandHandling, LandHandlingState};
 use avian3d::prelude::*;
 use bevy::{
-    ecs::{component::HookContext, world::DeferredWorld},
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
     prelude::*,
 };
 use bevy_mod_outline::{AsyncSceneInheritOutline, OutlineMode, OutlineVolume};
