@@ -12,6 +12,9 @@ pub struct Selected<const DEVELOP: bool = false>(pub bool)
 where
     Selected<DEVELOP>: ClickOrPress;
 
+#[derive(Component)]
+pub struct SelectOthers(pub Vec<Entity>);
+
 impl<const DEVELOP: bool> Selected<DEVELOP>
 where
     Selected<DEVELOP>: ClickOrPress,
@@ -38,14 +41,15 @@ where
 /// unselected. This is due to a lack of observer ordering.
 fn select<const DEVELOP: bool>(
     on: On<Pointer<<Selected<DEVELOP> as ClickOrPress>::On>>,
-    mut selected: Query<(
+    mut selecteds: Query<(
         &mut Selected<DEVELOP>,
+        Option<&SelectOthers>,
         Option<(&OutlineWhileSelected<DEVELOP>, &mut OutlineVolume)>,
     )>,
 ) where
     Selected<DEVELOP>: ClickOrPress,
 {
-    let (mut selected, outline_while_selected) = selected
+    let (mut selected, select_others, outline_while_selected) = selecteds
         .get_mut(on.entity)
         .else_error("Unreachable. No Selected component found.")?;
     selected.0 = !selected.0;
@@ -60,6 +64,26 @@ fn select<const DEVELOP: bool>(
     if selected.0 {
         outline.colour = outline_while_selected.colour;
         outline.width = outline_while_selected.width;
+    }
+
+    // Hacky editor only junk.
+    if let Some(select_others) = select_others {
+        let selected = selected.0;
+        for other in select_others.0.clone() {
+            let (mut other_selected, _, outline_while_selected) = selecteds
+                .get_mut(other)
+                .else_error("Unreachable. No Selected component found.")?;
+
+            other_selected.0 = selected;
+
+            let (outline_while_selected, mut outline) = outline_while_selected.else_return()?;
+
+            outline.visible = selected;
+            if selected {
+                outline.colour = outline_while_selected.colour;
+                outline.width = outline_while_selected.width;
+            }
+        }
     }
 }
 

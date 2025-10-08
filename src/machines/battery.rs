@@ -1,6 +1,5 @@
 use crate::{
     error_handling::ToUnwrapResult,
-    instantiate::{Config, InstantiateInto},
     machines::{
         outlet::{OutletSensor, OutletSensorEntity},
         power::Energy,
@@ -16,94 +15,89 @@ pub fn plugin(app: &mut App) {
     app.add_systems(Update, (load, charge_indicator));
 }
 
-pub struct BatteryConfig {
-    pub charge: u8,
-}
+pub fn load(
+    names: Query<(Entity, &Name), Added<Name>>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    for (root_entity, name) in names {
+        if name.starts_with("battery") {
+            let scene = asset_server.load("machines/battery.glb#Scene0");
 
-impl Default for BatteryConfig {
-    fn default() -> Self {
-        Self { charge: 50 }
-    }
-}
+            // outlet connected
+            let outlet_sensor_entity = commands
+                .spawn((
+                    OutletSensor {
+                        root: root_entity,
+                        rest_length: 1.,
+                        plugs: vec![],
+                        max_plugs: None,
+                    },
+                    Collider::cuboid(2., 2., 2.),
+                    SyncTranslation {
+                        target: root_entity,
+                        offset: Vec3::ZERO,
+                    },
+                    SyncRotation {
+                        target: root_entity,
+                    },
+                ))
+                .id();
 
-impl Config for BatteryConfig {
-    fn instantiate(self, world: &mut World, root_entity: Entity) {
-        let asset_server = world.resource::<AssetServer>();
-        let scene = asset_server.load("machines/battery.glb#Scene0");
+            let light = PointLight {
+                intensity: 500.0, // lumens
+                range: 0.25,
+                color: Srgba::rgb(0., 1., 0.).into(),
+                shadows_enabled: false,
+                ..default()
+            };
 
-        // outlet connected
-        let outlet_sensor_entity = world
-            .spawn((
-                OutletSensor {
-                    root: root_entity,
-                    rest_length: 1.,
-                    plugs: vec![],
-                    max_plugs: None,
+            let top = commands
+                .spawn((
+                    light,
+                    SyncTranslation {
+                        target: root_entity,
+                        offset: Vec3::new(0., 1. / 3., 0.4),
+                    },
+                ))
+                .id();
+
+            let middle = commands
+                .spawn((
+                    light,
+                    SyncTranslation {
+                        target: root_entity,
+                        offset: Vec3::new(0., 0., 0.4),
+                    },
+                ))
+                .id();
+
+            let bottom = commands
+                .spawn((
+                    light,
+                    SyncTranslation {
+                        target: root_entity,
+                        offset: Vec3::new(0., -(1. / 3.), 0.4),
+                    },
+                ))
+                .id();
+
+            // battery
+            commands.entity(root_entity).insert((
+                BatteryLights {
+                    top,
+                    middle,
+                    bottom,
                 },
-                Collider::cuboid(2., 2., 2.),
-                SyncTranslation {
-                    target: root_entity,
-                    offset: Vec3::ZERO,
-                },
-                SyncRotation {
-                    target: root_entity,
-                },
-            ))
-            .id();
-
-        let light = PointLight {
-            intensity: 500.0, // lumens
-            range: 0.25,
-            color: Srgba::rgb(0., 1., 0.).into(),
-            shadows_enabled: false,
-            ..default()
-        };
-
-        let top = world
-            .spawn((
-                light,
-                SyncTranslation {
-                    target: root_entity,
-                    offset: Vec3::new(0., 1. / 3., 0.4),
-                },
-            ))
-            .id();
-
-        let middle = world
-            .spawn((
-                light,
-                SyncTranslation {
-                    target: root_entity,
-                    offset: Vec3::new(0., 0., 0.4),
-                },
-            ))
-            .id();
-
-        let bottom = world
-            .spawn((
-                light,
-                SyncTranslation {
-                    target: root_entity,
-                    offset: Vec3::new(0., -(1. / 3.), 0.4),
-                },
-            ))
-            .id();
-
-        // battery
-        world.entity_mut(root_entity).insert((
-            BatteryLights {
-                top,
-                middle,
-                bottom,
-            },
-            SceneRoot(scene),
-            Propagate(ComesFromRootEntity(root_entity)),
-            MassPropertiesBundle::from_shape(&Cuboid::new(1., 1., 1.), 10.),
-            Collider::cuboid(1., 1., 1.),
-            Battery,
-            OutletSensorEntity(outlet_sensor_entity),
-            Energy(self.charge),
-        ));
+                SceneRoot(scene),
+                Propagate(ComesFromRootEntity(root_entity)),
+                MassPropertiesBundle::from_shape(&Cuboid::new(1., 1., 1.), 10.),
+                Collider::cuboid(1., 1., 1.),
+                Battery,
+                OutletSensorEntity(outlet_sensor_entity),
+                Energy(50),
+            ));
+        }
     }
 }
 
@@ -116,27 +110,6 @@ pub struct BatteryLights {
     top: Entity,
     middle: Entity,
     bottom: Entity,
-}
-
-fn load(extras: Query<(&GltfExtras, Entity), Added<GltfExtras>>, mut commands: Commands) {
-    extras.iter().for_each(|(extras, entity)| {
-        let extras_json = serde_json::from_str::<serde_json::Value>(&extras.value)
-            .else_error("Gltf extras was not json.")?;
-        let charge = u8::try_from(
-            extras_json
-                .get("battery")
-                .else_return()?
-                .as_u64()
-                .else_return()?,
-        )
-        .else_error("Too much charge in battery.")?;
-
-        info!("Spawned battery with charge: {charge}");
-
-        commands
-            .entity(entity)
-            .instantiate(BatteryConfig { charge });
-    });
 }
 
 fn charge_indicator(

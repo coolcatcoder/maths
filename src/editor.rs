@@ -1,10 +1,8 @@
 use std::{
     fs::OpenOptions,
     io::{Read, Seek, Write},
-    ops::Index,
 };
 
-use avian3d::prelude::RigidBody;
 use bevy::{
     feathers::{
         FeathersPlugins,
@@ -14,35 +12,76 @@ use bevy::{
         tokens,
     },
     input_focus::tab_navigation::TabGroup,
+    scene::SceneInstance,
     ui_widgets::{Activate, observe},
 };
 use bevy_mod_outline::OutlineVolume;
 
 pub use crate::bevy_prelude::*;
-use crate::mouse::selection::{OutlineWhileSelected, Selected};
+use crate::{
+    areas::Area,
+    mouse::{
+        drag::Dragged,
+        selection::{OutlineWhileSelected, SelectOthers, Selected},
+    },
+    render::ComesFromRootEntity,
+};
 
 pub fn editor(file_path: &'static str) -> impl Fn(&mut App) {
     move |app: &mut App| {
         app.add_plugins(FeathersPlugins)
             .insert_resource(UiTheme(create_dark_theme()))
-            .add_systems(Update, make_develop_selectable)
+            .add_systems(Update, (make_develop_selectable, add_extra_selectables))
             .add_systems(Startup, create_load(file_path));
     }
 }
 
-fn make_develop_selectable(
-    physics: Query<Entity, (Added<RigidBody>, With<Name>)>,
+fn add_extra_selectables(
+    select_others: Query<&SelectOthers, (Added<SelectOthers>, With<Selected<true>>)>,
     mut commands: Commands,
 ) {
-    for entity in physics {
-        // commands.entity(entity).insert((
-        //     Selected::<true>(false),
-        //     OutlineWhileSelected::<true> {
-        //         colour: Color::srgb(1., 0., 0.),
-        //         width: 3.,
-        //     },
-        // ));
-    }
+    select_others.iter().for_each(|select_others| {
+        select_others.0.iter().for_each(|other| {
+            commands
+                .entity(*other)
+                .insert((
+                    Selected::<true>(false),
+                    OutlineWhileSelected::<true> {
+                        colour: Color::srgb(1., 0., 0.),
+                        width: 3.,
+                    },
+                ))
+                .observe(drag);
+        });
+    });
+}
+
+fn make_develop_selectable(
+    areas: Query<&Children, (Added<SceneInstance>, With<Area>)>,
+    children: Query<&Children>,
+    mut commands: Commands,
+) {
+    areas.iter().for_each(|scene_children| {
+        if scene_children.len() != 1 {
+            error!("There should only be one child for SceneInstance entities.");
+            return;
+        }
+        let scene_child = scene_children.iter().next().else_return()?;
+        let children = children.get(scene_child).else_return()?;
+
+        children.iter().for_each(|child| {
+            commands
+                .entity(child)
+                .insert((
+                    Selected::<true>(false),
+                    OutlineWhileSelected::<true> {
+                        colour: Color::srgb(1., 0., 0.),
+                        width: 3.,
+                    },
+                ))
+                .observe(drag);
+        });
+    });
 }
 
 fn create_load(file_path: &'static str) -> impl Fn(Commands) {
@@ -124,7 +163,7 @@ pub fn create_apply_patches(
                 *transform = Transform {{
                     translation: Vec3::new({:?}, {:?}, {:?}),
                     rotation: Quat::from_array([{:?}, {:?}, {:?}, {:?}]),
-                    scale: Vec3::ONE,
+                    scale: Vec3::new({:?}, {:?}, {:?}),
                 }}
             }}",
                         name.as_str(),
@@ -135,87 +174,90 @@ pub fn create_apply_patches(
                         transform.rotation.y,
                         transform.rotation.z,
                         transform.rotation.w,
+                        transform.scale.x,
+                        transform.scale.y,
+                        transform.scale.z,
                     ),
                 );
                 patches.push(patch);
             }
         }
 
-        let path = module_path;
-
         let mut file = OpenOptions::new()
             .write(true)
             .read(true)
-            .open(path)
-            .else_error(format!("Could not open file. Path: {path}"))?;
+            .append(false)
+            .open(module_path)
+            .else_error(format!("Could not open file. Path: {module_path}"))?;
 
         let mut contents = String::new();
         file.read_to_string(&mut contents)
             .else_error("Could not read file.")?;
 
-        let start = contents.find("fn patch");
-        match start {
-            None => {
-                contents.push_str(
-                    "
+        while !patches.is_empty() {
+            let patch_function_start = contents.find("fn patch");
+
+            match patch_function_start {
+                None => {
+                    contents.push_str(
+                        "
 pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
     for (name, mut transform) in names {
         #[allow(clippy::match_same_arms)]
         #[allow(clippy::unreadable_literal)]
         #[allow(clippy::single_match)]
         match name.as_str() {",
-                );
+                    );
 
-                for (_, patch) in patches {
-                    use std::fmt::Write;
-                    write!(&mut contents, "\n{patch}").else_error("Failed to write to contents")?;
-                }
+                    let patches = std::mem::take(&mut patches);
+                    for (_, patch) in patches {
+                        use std::fmt::Write;
+                        write!(&mut contents, "\n{patch}")
+                            .else_error("Failed to write to contents")?;
+                    }
 
-                contents.push_str(
-                    "
+                    contents.push_str(
+                        "
             _ => (),
         }
     }
 }
 ",
-                );
-
-                info!("{contents}");
-                file.rewind().else_error("Could not rewind.")?;
-                file.write(contents.as_bytes())
-                    .else_error("Could not save patches.")?;
-            }
-            Some(start_of_function) => {
-                let mut brackets_open = 1;
-                let mut index = start_of_function + 61;
-                while brackets_open != 0 {
-                    index += 1;
-                    let character = *contents
-                        .as_bytes()
-                        .get(index)
-                        .else_error("Closing bracket not found.")?
-                        as char;
-                    match character {
-                        '{' => {
-                            brackets_open += 1;
-                        }
-                        '}' => {
-                            brackets_open -= 1;
-                        }
-                        _ => (),
-                    }
+                    );
                 }
+                Some(start_of_function) => {
+                    let mut brackets_open = 1;
+                    let mut index = start_of_function + 61;
+                    while brackets_open != 0 {
+                        index += 1;
+                        let character = *contents
+                            .as_bytes()
+                            .get(index)
+                            .else_error("Closing bracket not found.")?
+                            as char;
+                        match character {
+                            '{' => {
+                                brackets_open += 1;
+                            }
+                            '}' => {
+                                brackets_open -= 1;
+                            }
+                            _ => (),
+                        }
+                    }
 
-                let patch_function = contents
-                    .get(start_of_function..index)
-                    .else_error("Patch function range is broken.")?
-                    .to_owned();
+                    let patch_function = contents
+                        .get(start_of_function..index)
+                        .else_error("Patch function range is broken.")?
+                        .to_owned();
 
-                info!("{patch_function}");
+                    //info!("{patch_function}");
 
-                for (name, patch) in patches {
+                    let (name, patch) = patches.pop().else_error("The while loop failed.")?;
+
                     match patch_function.find(&format!("\"{name}\"")) {
                         None => {
+                            info!("Some None");
                             let last_match = patch_function
                                 .find("_ =>")
                                 .else_error("Could not find last match.")?;
@@ -225,8 +267,10 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
                             );
                         }
                         Some(start_of_arm) => {
+                            info!("Some Some");
                             let mut brackets_open = 1;
                             let mut index = start_of_function + start_of_arm + name.len() + 7;
+                            info!("Begin!");
                             while brackets_open != 0 {
                                 index += 1;
                                 let character = *contents
@@ -234,6 +278,7 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
                                     .get(index)
                                     .else_error("Closing bracket not found.")?
                                     as char;
+                                print!("{character}");
                                 match character {
                                     '{' => {
                                         brackets_open += 1;
@@ -259,12 +304,61 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
                         }
                     }
                 }
-
-                //info!("{contents}");
-                file.rewind().else_error("Could not rewind.")?;
-                file.write(contents.as_bytes())
-                    .else_error("Could not save patches.")?;
             }
         }
+
+        //info!("{contents}");
+        file.rewind().else_error("Could not rewind.")?;
+        file.write_all(contents.as_bytes())
+            .else_error("Could not save patches.")?;
     }
+}
+
+pub fn drag(
+    drag: On<Pointer<Drag>>,
+    mut transforms: Query<&mut Transform, Without<Dragged>>,
+    camera: Query<(&Camera, &GlobalTransform)>,
+    window: Query<&Window>,
+    mut ray_cast: MeshRayCast,
+    comes_from_root_entity: Query<&ComesFromRootEntity>,
+) {
+    // Return, rather than error. If the entity can already be dragged, then we
+    // don't want to double dip.
+    let mut transform = transforms.get_mut(drag.entity).else_return()?;
+
+    let target = drag.event().event_target();
+
+    let window = window.single().else_error("Not a single window.")?;
+    let cursor_translation = window.cursor_position().else_return()?;
+
+    let (camera, camera_transform) = camera.single().else_error("Not a single camera.")?;
+    let cursor_ray = camera
+        .viewport_to_world(camera_transform, cursor_translation)
+        .else_error("Viewport to world failed.")?;
+
+    let (_, hit) = ray_cast
+        .cast_ray(
+            cursor_ray,
+            &MeshRayCastSettings {
+                visibility: RayCastVisibility::VisibleInView,
+                filter: &|entity| {
+                    if entity == target {
+                        return false;
+                    }
+                    let Ok(comes_from_root_entity) = comes_from_root_entity.get(entity) else {
+                        return true;
+                    };
+
+                    comes_from_root_entity.0 != target
+                },
+                ..default()
+            },
+        )
+        .first()
+        .else_return()?;
+
+    let cursor_translation = hit.point;
+    let desired_translation = cursor_translation + Vec3::new(0., 0.5, 0.);
+
+    transform.translation = desired_translation;
 }

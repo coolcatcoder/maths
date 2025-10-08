@@ -1,187 +1,193 @@
 use crate::{
     error_handling::ToUnwrapResult,
-    instantiate::{Config, GetOrInsert},
     machines::outlet::OutletSensor,
-    mouse::{Interactable, drag},
+    mouse::{
+        Interactable,
+        drag::{self, Dragged},
+        selection::SelectOthers,
+    },
     physics::CollisionLayer,
     render::ComesFromRootEntity,
 };
 use avian3d::prelude::*;
 use bevy::{app::Propagate, prelude::*};
 
-pub fn plugin(_: &mut App) {
-    //app.add_systems(Update, load);
+pub fn plugin(app: &mut App) {
+    app.add_systems(Update, load);
 }
 
-pub struct CableConfig {
-    pub length: u8,
-    pub force_other_head: Option<Vec3>,
-}
+const PLUG_DENSITY: f32 = 25.;
+const PLUG_COMPLIANCE: f32 = 0.0001;
 
-impl CableConfig {
-    const PLUG_DENSITY: f32 = 25.;
-    const PLUG_COMPLIANCE: f32 = 0.0001;
+const CABLE_RADIUS: f32 = 0.25 * 0.5;
+const CABLE_DENSITY: f32 = 10.;
+const CABLE_COMPLIANCE: f32 = 0.01;
 
-    const CABLE_RADIUS: f32 = 0.25 * 0.5;
-    const CABLE_DENSITY: f32 = 10.;
-    const CABLE_COMPLIANCE: f32 = 0.01;
+const MAX_DISTANCE: f32 = 0.2;
 
-    const MAX_DISTANCE: f32 = 0.2;
-}
+pub fn load(
+    names: Query<(Entity, &Name, &Transform), Added<Name>>,
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+) {
+    for (root_entity, name, transform) in names {
+        if name.starts_with("cable") {
+            let plug_scene = asset_server.load("machines/plug.glb#Scene0");
+            let cable_scene = asset_server.load("machines/cable.glb#Scene0");
 
-impl Config for CableConfig {
-    fn instantiate<'a>(self, world: &mut World, root_entity: Entity) {
-        let asset_server = world.resource::<AssetServer>();
-        let plug_scene = asset_server.load("machines/plug.glb#Scene0");
-        let cable_scene = asset_server.load("machines/cable.glb#Scene0");
+            let collision_layers = CollisionLayers::new(
+                [CollisionLayer::Cable, CollisionLayer::Floor],
+                [CollisionLayer::Default, CollisionLayer::Floor],
+            );
 
-        let transform = world
-            .entity_mut(root_entity)
-            .get_or_insert(Transform::default());
+            let mut select_others = vec![];
 
-        let mut commands = world.commands();
+            let head_joint = commands.spawn_empty().id();
+            let tail = commands.spawn_empty().id();
+            select_others.push(tail);
 
-        let collision_layers = CollisionLayers::new(
-            [CollisionLayer::Cable, CollisionLayer::Floor],
-            [CollisionLayer::Default, CollisionLayer::Floor],
-        );
+            let head = commands
+                .entity(root_entity)
+                .insert((
+                    Plug {
+                        outlet_sensors_within_range: vec![],
+                        dragged: false,
+                        outlet_sensor_connected_to: None,
+                        joint: head_joint,
+                        other_end: tail,
+                    },
+                    RigidBody::Dynamic,
+                    MassPropertiesBundle::from_shape(&Cuboid::new(0.8, 0.4, 0.8), PLUG_DENSITY),
+                    Collider::cuboid(0.8, 0.4, 0.8),
+                    collision_layers,
+                    SceneRoot(plug_scene.clone()),
+                    Propagate(ComesFromRootEntity(root_entity)),
+                    Interactable,
+                    Dragged(false),
+                ))
+                .observe(drag_start)
+                .observe(drag_end)
+                .id();
 
-        let head_joint = commands.spawn_empty().id();
-        let tail = commands.spawn_empty().id();
+            let mut previous_transform = *transform;
+            previous_transform.translation.y -= 0.2 + CABLE_RADIUS;
+            let mut previous = commands
+                .spawn((
+                    RigidBody::Dynamic,
+                    LockedAxes::ROTATION_LOCKED,
+                    MassPropertiesBundle::from_shape(&Sphere::new(CABLE_RADIUS), CABLE_DENSITY),
+                    Collider::sphere(CABLE_RADIUS),
+                    collision_layers,
+                    SceneRoot(cable_scene.clone()),
+                    Propagate(ComesFromRootEntity(root_entity)),
+                    previous_transform,
+                    Name::new(format!("block_loading_{name}_first_previous")),
+                ))
+                .id();
+            select_others.push(previous);
 
-        let head = commands
-            .entity(root_entity)
-            .insert((
-                Plug {
-                    outlet_sensors_within_range: vec![],
-                    dragged: false,
-                    outlet_sensor_connected_to: None,
-                    joint: head_joint,
-                    other_end: tail,
-                },
-                RigidBody::Dynamic,
-                MassPropertiesBundle::from_shape(&Cuboid::new(0.8, 0.4, 0.8), Self::PLUG_DENSITY),
-                Collider::cuboid(0.8, 0.4, 0.8),
-                collision_layers,
-                SceneRoot(plug_scene.clone()),
-                Propagate(ComesFromRootEntity(root_entity)),
-                Interactable,
-            ))
-            .observe(drag)
-            .observe(drag_start)
-            .observe(drag_end)
-            .id();
+            commands.spawn(
+                SphericalJoint::new(head, previous)
+                    .with_local_anchor1(Vec3::NEG_Y * 0.2)
+                    .with_local_anchor2(Vec3::Y * CABLE_RADIUS)
+                    .with_point_compliance(PLUG_COMPLIANCE)
+                    .with_swing_compliance(PLUG_COMPLIANCE)
+                    .with_twist_compliance(PLUG_COMPLIANCE),
+            );
+            commands.spawn(
+                DistanceJoint::new(head, previous)
+                    .with_limits(0., CABLE_RADIUS + 0.2 + MAX_DISTANCE),
+            );
 
-        let mut previous_transform = transform;
-        previous_transform.translation.y -= 0.2 + Self::CABLE_RADIUS;
-        let mut previous = commands
-            .spawn((
-                RigidBody::Dynamic,
-                LockedAxes::ROTATION_LOCKED,
-                MassPropertiesBundle::from_shape(
-                    &Sphere::new(Self::CABLE_RADIUS),
-                    Self::CABLE_DENSITY,
-                ),
-                Collider::sphere(Self::CABLE_RADIUS),
-                collision_layers,
-                SceneRoot(cable_scene.clone()),
-                Propagate(ComesFromRootEntity(root_entity)),
-                previous_transform,
-            ))
-            .id();
+            // TODO: Find a proper way to do length.
+            let length: u8 = 10;
+            for i in 1..length {
+                let mut transform = *transform;
+                transform.translation.y -= 0.2 + CABLE_RADIUS;
+                transform.translation.x += f32::from(i) * CABLE_RADIUS * 2.;
 
-        commands.spawn(
-            SphericalJoint::new(head, previous)
-                .with_local_anchor1(Vec3::NEG_Y * 0.2)
-                .with_local_anchor2(Vec3::Y * Self::CABLE_RADIUS)
-                .with_compliance(Self::PLUG_COMPLIANCE),
-        );
-        commands.spawn(
-            DistanceJoint::new(head, previous)
-                .with_limits(0., Self::CABLE_RADIUS + 0.2 + Self::MAX_DISTANCE),
-        );
+                let mut cable = commands.spawn((
+                    RigidBody::Dynamic,
+                    LockedAxes::ROTATION_LOCKED,
+                    MassPropertiesBundle::from_shape(&Sphere::new(CABLE_RADIUS), CABLE_DENSITY),
+                    SceneRoot(cable_scene.clone()),
+                    Propagate(ComesFromRootEntity(root_entity)),
+                    transform,
+                    Name::new(format!("block_loading_{name}_cable_{i}")),
+                ));
+                let current = cable.id();
 
-        for i in 1..self.length {
-            let mut transform = transform;
-            transform.translation.y -= 0.2 + Self::CABLE_RADIUS;
-            transform.translation.x += f32::from(i) * Self::CABLE_RADIUS * 2.;
+                if i % 6 == 0 {
+                    cable.insert((Collider::sphere(CABLE_RADIUS), collision_layers));
+                } else {
+                    cable.insert(GravityScale(-0.01));
+                }
 
-            let mut cable = commands.spawn((
-                RigidBody::Dynamic,
-                LockedAxes::ROTATION_LOCKED,
-                MassPropertiesBundle::from_shape(
-                    &Sphere::new(Self::CABLE_RADIUS),
-                    Self::CABLE_DENSITY,
-                ),
-                SceneRoot(cable_scene.clone()),
-                Propagate(ComesFromRootEntity(root_entity)),
-                transform,
-            ));
-            let current = cable.id();
+                commands.spawn(
+                    SphericalJoint::new(previous, current)
+                        .with_local_anchor1(Vec3::NEG_Y * CABLE_RADIUS)
+                        .with_local_anchor2(Vec3::Y * CABLE_RADIUS)
+                        .with_point_compliance(CABLE_COMPLIANCE)
+                        .with_swing_compliance(CABLE_COMPLIANCE)
+                        .with_twist_compliance(CABLE_COMPLIANCE),
+                );
+                commands.spawn(
+                    DistanceJoint::new(previous, current)
+                        .with_limits(0., CABLE_RADIUS * 2. + MAX_DISTANCE),
+                );
 
-            if i % 6 == 0 {
-                cable.insert((Collider::sphere(Self::CABLE_RADIUS), collision_layers));
-            } else {
-                cable.insert(GravityScale(-0.01));
+                previous = current;
+                select_others.push(previous);
             }
 
+            let tail_joint = commands.spawn_empty().id();
+
+            let mut tail_transform = *transform;
+            tail_transform.translation.x += f32::from(length - 1) * CABLE_RADIUS * 2.;
+
+            let tail = commands
+                .entity(tail)
+                .insert((
+                    Plug {
+                        outlet_sensors_within_range: vec![],
+                        dragged: false,
+                        outlet_sensor_connected_to: None,
+                        joint: tail_joint,
+                        other_end: head,
+                    },
+                    RigidBody::Dynamic,
+                    MassPropertiesBundle::from_shape(&Cuboid::new(0.8, 0.4, 0.8), PLUG_DENSITY),
+                    Collider::cuboid(0.8, 0.4, 0.8),
+                    collision_layers,
+                    SceneRoot(plug_scene.clone()),
+                    Propagate(ComesFromRootEntity(root_entity)),
+                    tail_transform,
+                    Interactable,
+                    Dragged(false),
+                    SelectOthers(select_others.clone()),
+                    Name::new(format!("block_loading_{name}_tail")),
+                ))
+                .observe(drag_start)
+                .observe(drag_end)
+                .id();
+
             commands.spawn(
-                SphericalJoint::new(previous, current)
-                    .with_local_anchor1(Vec3::NEG_Y * Self::CABLE_RADIUS)
-                    .with_local_anchor2(Vec3::Y * Self::CABLE_RADIUS)
-                    .with_compliance(Self::CABLE_COMPLIANCE),
+                SphericalJoint::new(previous, tail)
+                    .with_local_anchor1(Vec3::Y * CABLE_RADIUS)
+                    .with_local_anchor2(Vec3::NEG_Y * 0.2)
+                    .with_point_compliance(PLUG_COMPLIANCE)
+                    .with_swing_compliance(PLUG_COMPLIANCE)
+                    .with_twist_compliance(PLUG_COMPLIANCE),
             );
             commands.spawn(
-                DistanceJoint::new(previous, current)
-                    .with_limits(0., Self::CABLE_RADIUS * 2. + Self::MAX_DISTANCE),
+                DistanceJoint::new(previous, tail)
+                    .with_limits(0., CABLE_RADIUS + 0.2 + MAX_DISTANCE),
             );
 
-            previous = current;
+            commands
+                .entity(root_entity)
+                .insert(SelectOthers(select_others));
         }
-
-        let tail_joint = commands.spawn_empty().id();
-
-        let mut tail_transform = transform;
-        tail_transform.translation.x += f32::from(self.length - 1) * Self::CABLE_RADIUS * 2.;
-
-        if let Some(tail_translation) = self.force_other_head {
-            tail_transform.translation = tail_translation;
-        }
-
-        let tail = commands
-            .entity(tail)
-            .insert((
-                Plug {
-                    outlet_sensors_within_range: vec![],
-                    dragged: false,
-                    outlet_sensor_connected_to: None,
-                    joint: tail_joint,
-                    other_end: head,
-                },
-                RigidBody::Dynamic,
-                MassPropertiesBundle::from_shape(&Cuboid::new(0.8, 0.4, 0.8), Self::PLUG_DENSITY),
-                Collider::cuboid(0.8, 0.4, 0.8),
-                collision_layers,
-                SceneRoot(plug_scene.clone()),
-                Propagate(ComesFromRootEntity(root_entity)),
-                tail_transform,
-                Interactable,
-            ))
-            .observe(drag)
-            .observe(drag_start)
-            .observe(drag_end)
-            .id();
-
-        commands.spawn(
-            SphericalJoint::new(previous, tail)
-                .with_local_anchor1(Vec3::Y * Self::CABLE_RADIUS)
-                .with_local_anchor2(Vec3::NEG_Y * 0.2)
-                .with_compliance(Self::PLUG_COMPLIANCE),
-        );
-        commands.spawn(
-            DistanceJoint::new(previous, tail)
-                .with_limits(0., Self::CABLE_RADIUS + 0.2 + Self::MAX_DISTANCE),
-        );
     }
 }
 

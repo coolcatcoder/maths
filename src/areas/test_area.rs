@@ -4,8 +4,8 @@ use bevy::prelude::*;
 use crate::{
     areas::LoadArea,
     instantiate::InstantiateInto,
-    machines::{battery::BatteryConfig, cable::CableConfig, light::LightBulb, robot::RobotConfig},
-    mouse::drag,
+    machines::{light::LightBulb, robot::RobotConfig},
+    mouse::drag::{self, Dragged},
 };
 
 pub fn plugin(_: &mut App) {}
@@ -27,28 +27,10 @@ pub fn load(commands: &mut Commands) {
 
     // player
     commands
-        .spawn(Transform::from_xyz(0., 1., 7.))
-        .instantiate(RobotConfig)
-        .observe(drag);
+        .spawn((Transform::from_xyz(0., 1., 7.), Dragged(false)))
+        .instantiate(RobotConfig);
 
-    commands
-        .spawn((RigidBody::Static, Transform::from_xyz(0., 0.5, -1.)))
-        .observe(drag)
-        .instantiate(BatteryConfig { charge: 50 });
-    commands
-        .spawn((RigidBody::Dynamic, Transform::from_xyz(-5., 0.5, 0.)))
-        .observe(drag)
-        .instantiate(BatteryConfig { charge: 50 });
     commands.spawn((LightBulb, Transform::from_xyz(3., 0.5, 4.)));
-
-    // Cable testing.
-    commands
-        .spawn(Transform::from_xyz(0., 1., -1.))
-        .instantiate(CableConfig {
-            length: 20,
-            force_other_head: None,
-            //force_other_head: Some(Vec3::new(3., 1., 4.)),
-        });
 
     // commands
     //     .spawn(Transform::from_xyz(-10., 5., 3.))

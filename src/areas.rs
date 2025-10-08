@@ -28,6 +28,9 @@ mod feathers;
 
 plugin_module!(pub start);
 
+#[derive(Component)]
+pub struct Area;
+
 pub fn plugin(app: &mut App) {
     area_plugins(app);
     app.add_plugins(plugins_in_modules)
