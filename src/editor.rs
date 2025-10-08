@@ -311,6 +311,7 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
         file.rewind().else_error("Could not rewind.")?;
         file.write_all(contents.as_bytes())
             .else_error("Could not save patches.")?;
+        file.set_len(contents.len() as u64).else_error("Could not set length.")?;
     }
 }
 
