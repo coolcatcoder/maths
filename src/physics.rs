@@ -12,7 +12,12 @@ pub fn plugin(app: &mut App) {
     }
     app.add_plugins(PhysicsPlugins::default())
         .add_systems(Startup, create_floor)
-        .add_systems(Update, load);
+        .add_systems(Update, load)
+        .add_systems(Startup, pause);
+}
+
+fn pause(mut time: ResMut<Time<Physics>>) {
+    time.pause();
 }
 
 #[derive(PhysicsLayer, Default)]

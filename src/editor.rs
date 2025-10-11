@@ -3,6 +3,7 @@ use std::{
     io::{Read, Seek, Write},
 };
 
+use avian3d::prelude::{Physics, PhysicsTime};
 use bevy::{
     feathers::{
         FeathersPlugins,
@@ -32,7 +33,20 @@ pub fn editor(file_path: &'static str) -> impl Fn(&mut App) {
         app.add_plugins(FeathersPlugins)
             .insert_resource(UiTheme(create_dark_theme()))
             .add_systems(Update, (make_develop_selectable, add_extra_selectables))
-            .add_systems(Startup, create_load(file_path));
+            .add_systems(Startup, create_load(file_path))
+            .add_systems(Update, log_system);
+    }
+}
+
+fn log_system(query: Query<(Entity, &Transform, Ref<Transform>, &Name), Changed<Transform>>) {
+    for (entity, transform, t, name) in &query {
+        info!(
+            ?entity,
+            ?name,
+            ?transform,
+            changed_by = ?t.changed_by(),
+            "changed"
+        );
     }
 }
 
@@ -142,12 +156,27 @@ fn create_load(file_path: &'static str) -> impl Fn(Commands) {
                         ),
                         observe(create_apply_patches(file_path))
                     ),
+                    (
+                        button(
+                            ButtonProps::default(),
+                            (),
+                            Spawn((Text::new("toggle physics"), ThemedText))
+                        ),
+                        observe(|_: On<Activate>, mut time: ResMut<Time<Physics>>| {
+                            if time.is_paused() {
+                                time.unpause();
+                            } else {
+                                time.pause();
+                            }
+                        })
+                    ),
                 ]
             ),],
         ));
     }
 }
 
+#[rustfmt::skip]
 pub fn create_apply_patches(
     module_path: &'static str,
 ) -> impl Fn(On<Activate>, Query<(&Selected<true>, &Name, &Transform)>) {
@@ -155,7 +184,7 @@ pub fn create_apply_patches(
         let mut patches = vec![];
         for (selected, name, transform) in selected {
             if selected.0 {
-                info!("{}", name);
+                //info!("{}", name);
                 let patch = (
                     name.to_string(),
                     format!(
@@ -201,12 +230,12 @@ pub fn create_apply_patches(
                 None => {
                     contents.push_str(
                         "
-pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
-    for (name, mut transform) in names {
+#[rustfmt::skip]
+pub fn patch(name: &str, mut transform: Mut<Transform>) {
         #[allow(clippy::match_same_arms)]
         #[allow(clippy::unreadable_literal)]
         #[allow(clippy::single_match)]
-        match name.as_str() {",
+        match name {",
                     );
 
                     let patches = std::mem::take(&mut patches);
@@ -220,14 +249,13 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
                         "
             _ => (),
         }
-    }
 }
 ",
                     );
                 }
                 Some(start_of_function) => {
                     let mut brackets_open = 1;
-                    let mut index = start_of_function + 61;
+                    let mut index = start_of_function + 52;
                     while brackets_open != 0 {
                         index += 1;
                         let character = *contents
@@ -235,6 +263,7 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
                             .get(index)
                             .else_error("Closing bracket not found.")?
                             as char;
+                        //print!("{character}");
                         match character {
                             '{' => {
                                 brackets_open += 1;
@@ -257,7 +286,7 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
 
                     match patch_function.find(&format!("\"{name}\"")) {
                         None => {
-                            info!("Some None");
+                            //info!("Some None");
                             let last_match = patch_function
                                 .find("_ =>")
                                 .else_error("Could not find last match.")?;
@@ -267,10 +296,10 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
                             );
                         }
                         Some(start_of_arm) => {
-                            info!("Some Some");
+                            //info!("Some Some");
                             let mut brackets_open = 1;
                             let mut index = start_of_function + start_of_arm + name.len() + 7;
-                            info!("Begin!");
+                            //info!("Begin!");
                             while brackets_open != 0 {
                                 index += 1;
                                 let character = *contents
@@ -278,7 +307,7 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
                                     .get(index)
                                     .else_error("Closing bracket not found.")?
                                     as char;
-                                print!("{character}");
+                                //print!("{character}");
                                 match character {
                                     '{' => {
                                         brackets_open += 1;
@@ -290,12 +319,12 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
                                 }
                             }
 
-                            let arm = contents
-                                .get((start_of_function + start_of_arm)..=index)
-                                .else_error("Patch function range is broken.")?
-                                .to_owned();
+                            // let arm = contents
+                            //     .get((start_of_function + start_of_arm)..=index)
+                            //     .else_error("Patch function range is broken.")?
+                            //     .to_owned();
 
-                            info!("{arm}");
+                            //info!("{arm}");
 
                             contents.replace_range(
                                 (start_of_function + start_of_arm - 12)..=index,
@@ -311,7 +340,8 @@ pub fn patch(names: Query<(&Name, &mut Transform), Added<Name>>) {
         file.rewind().else_error("Could not rewind.")?;
         file.write_all(contents.as_bytes())
             .else_error("Could not save patches.")?;
-        file.set_len(contents.len() as u64).else_error("Could not set length.")?;
+        file.set_len(contents.len() as u64)
+            .else_error("Could not set length.")?;
     }
 }
 

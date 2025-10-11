@@ -1,13 +1,5 @@
 use crate::{
-    error_handling::ToUnwrapResult,
-    machines::outlet::OutletSensor,
-    mouse::{
-        Interactable,
-        drag::{self, Dragged},
-        selection::SelectOthers,
-    },
-    physics::CollisionLayer,
-    render::ComesFromRootEntity,
+    areas::LoadedFromArea, error_handling::ToUnwrapResult, machines::outlet::OutletSensor, mouse::{Interactable, drag::Dragged, selection::SelectOthers}, physics::CollisionLayer, render::ComesFromRootEntity
 };
 use avian3d::prelude::*;
 use bevy::{app::Propagate, prelude::*};
@@ -26,11 +18,11 @@ const CABLE_COMPLIANCE: f32 = 0.01;
 const MAX_DISTANCE: f32 = 0.2;
 
 pub fn load(
-    names: Query<(Entity, &Name, &Transform), Added<Name>>,
+    names: Query<(Entity, &Name, &Transform, &LoadedFromArea), Added<LoadedFromArea>>,
     asset_server: Res<AssetServer>,
     mut commands: Commands,
 ) {
-    for (root_entity, name, transform) in names {
+    for (root_entity, name, transform, loaded_from_area) in names {
         if name.starts_with("cable") {
             let plug_scene = asset_server.load("machines/plug.glb#Scene0");
             let cable_scene = asset_server.load("machines/cable.glb#Scene0");
@@ -40,7 +32,7 @@ pub fn load(
                 [CollisionLayer::Default, CollisionLayer::Floor],
             );
 
-            let mut select_others = vec![];
+            let mut select_others = vec![root_entity];
 
             let head_joint = commands.spawn_empty().id();
             let tail = commands.spawn_empty().id();
@@ -63,7 +55,7 @@ pub fn load(
                     SceneRoot(plug_scene.clone()),
                     Propagate(ComesFromRootEntity(root_entity)),
                     Interactable,
-                    Dragged(false),
+                    Dragged::default(),
                 ))
                 .observe(drag_start)
                 .observe(drag_end)
@@ -82,6 +74,7 @@ pub fn load(
                     Propagate(ComesFromRootEntity(root_entity)),
                     previous_transform,
                     Name::new(format!("block_loading_{name}_first_previous")),
+                    LoadedFromArea(loaded_from_area.0),
                 ))
                 .id();
             select_others.push(previous);
@@ -114,6 +107,7 @@ pub fn load(
                     Propagate(ComesFromRootEntity(root_entity)),
                     transform,
                     Name::new(format!("block_loading_{name}_cable_{i}")),
+                    LoadedFromArea(loaded_from_area.0),
                 ));
                 let current = cable.id();
 
@@ -163,9 +157,10 @@ pub fn load(
                     Propagate(ComesFromRootEntity(root_entity)),
                     tail_transform,
                     Interactable,
-                    Dragged(false),
+                    Dragged::default(),
                     SelectOthers(select_others.clone()),
                     Name::new(format!("block_loading_{name}_tail")),
+                    LoadedFromArea(loaded_from_area.0),
                 ))
                 .observe(drag_start)
                 .observe(drag_end)

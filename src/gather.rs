@@ -21,7 +21,6 @@ macro_rules! plugin_module {
             $(
                 $module::plugin(app);
                 $module::plugins_in_modules(app);
-                app.add_systems(Update, $module::patch);
             )*
         }
     };

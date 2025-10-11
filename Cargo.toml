@@ -36,7 +36,8 @@ bevy = { version = "0.17.2", default-features = false, features = [
     "reflect_auto_register",
     "experimental_bevy_feathers",
     "bevy_input_focus",
-    "debug"
+    "debug",
+    "track_location",
     ]}
 leafwing-input-manager = "0.18.0"
 avian3d = { git = "https://github.com/Jondolf/avian" }

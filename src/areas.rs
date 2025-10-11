@@ -1,7 +1,7 @@
 use avian3d::prelude::{
     CollisionEnd, CollisionEventsEnabled, CollisionLayers, CollisionStart, RigidBody, Sensor,
 };
-use bevy::prelude::*;
+use bevy::{ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, scene::SceneInstanceReady};
 
 use crate::{error_handling::ToUnwrapResult, physics::CollisionLayer, plugin_module};
 
@@ -28,14 +28,50 @@ mod feathers;
 
 plugin_module!(pub start);
 
-#[derive(Component)]
-pub struct Area;
-
 pub fn plugin(app: &mut App) {
     area_plugins(app);
     app.add_plugins(plugins_in_modules)
         //.add_systems(Startup, temp_load_all)
-        .add_systems(Update, (on_enter, on_exit));
+        .add_systems(Update, (on_enter, on_exit, apply_patches));
+}
+
+#[derive(Component)]
+pub struct LoadedFromArea(pub Entity);
+
+#[derive(Component)]
+#[component(on_add = Self::on_add)]
+pub struct Area {
+    pub patch_function: fn(&str, Mut<Transform>),
+}
+
+impl Area {
+    fn on_add(mut world: DeferredWorld, context: HookContext) {
+        world
+            .commands()
+            .entity(context.entity)
+            .observe(Self::load);
+    }
+
+    fn load(on: On<SceneInstanceReady>, children: Query<&Children>, mut commands: Commands) {
+        let scene_children = children.get(on.entity).else_error("Failed to get scene children.")?;
+        if scene_children.len() != 1 {
+            error!("There should only be one child for SceneInstance entities.");
+            return;
+        }
+        let scene_child = scene_children.iter().next().else_return()?;
+        let children = children.get(scene_child).else_return()?;
+
+        children.iter().for_each(|child| {
+            commands.entity(child).insert(LoadedFromArea(on.entity));
+        });
+    }
+}
+
+fn apply_patches(areas: Query<&Area>, mut to_load: Query<(&LoadedFromArea, &Name, &mut Transform), Added<LoadedFromArea>>) {
+    to_load.iter_mut().for_each(|(loaded_from_area, name, transform)| {
+        let area = areas.get(loaded_from_area.0).else_error("Could not get area.")?;
+        (area.patch_function)(name, transform);
+    });
 }
 
 fn temp_load_all(asset_server: Res<AssetServer>, mut commands: Commands) {

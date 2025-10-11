@@ -2,9 +2,13 @@ pub use crate::bevy_prelude::*;
 use crate::render::ComesFromRootEntity;
 use avian3d::prelude::*;
 
-#[derive(Component)]
+pub fn plugin(app: &mut App) {
+    app.add_systems(Update, move_to_drag);
+}
+
+#[derive(Component, Default)]
 #[component(on_add = Self::on_add)]
-pub struct Dragged(pub bool);
+pub struct Dragged(pub Option<Vec3>);
 
 impl Dragged {
     fn on_add(mut world: DeferredWorld, context: HookContext) {
@@ -12,38 +16,58 @@ impl Dragged {
             .commands()
             .entity(context.entity)
             .observe(drag_start)
-            .observe(drag_end);
+            .observe(drag_end)
+            .observe(drag);
     }
 }
 
-pub fn drag_start(on: On<Pointer<DragStart>>, mut dragged: Query<&mut Dragged>) {
-    dragged
+pub fn drag_start(on: On<Pointer<DragStart>>, mut dragged: Query<(&mut Dragged, &Transform)>) {
+    let (mut dragged, transform) = dragged
         .get_mut(on.entity)
-        .else_error("No Dragged component.")?
-        .0 = true;
+        .else_error("No Dragged component.")?;
+    dragged.0 = Some(transform.translation);
 }
 
 pub fn drag_end(on: On<Pointer<DragEnd>>, mut dragged: Query<&mut Dragged>) {
     dragged
         .get_mut(on.entity)
         .else_error("No Dragged component.")?
-        .0 = true;
+        .0 = None;
+}
+
+pub fn move_to_drag(
+    mut dragged: Query<(&Dragged, &mut LinearVelocity, &Transform)>,
+    time: Res<Time>,
+) {
+    dragged
+        .iter_mut()
+        .for_each(|(dragged, mut velocity, transform)| {
+            let dragged = dragged.0.else_return()?;
+
+            let desired_translation = dragged + Vec3::new(0., 1., 0.);
+
+            let displacement = desired_translation - transform.translation;
+            let time = time.delta_secs();
+            velocity.0 = displacement * time * 1000.;
+            velocity.0 = velocity.min(Vec3::splat(10.));
+        });
 }
 
 pub fn drag(
-    drag: On<Pointer<Drag>>,
-    mut velocity: Query<(&mut LinearVelocity, &Transform)>,
+    on: On<Pointer<Drag>>,
+    mut dragged: Query<&mut Dragged>,
     camera: Query<(&Camera, &GlobalTransform)>,
     window: Query<&Window>,
     mut ray_cast: MeshRayCast,
-    time: Res<Time>,
     comes_from_root_entity: Query<&ComesFromRootEntity>,
 ) {
-    let (mut velocity, transform) = velocity
-        .get_mut(drag.event().event_target())
+    let mut dragged = dragged
+        .get_mut(on.entity)
         .else_error("No linear velocity when dragging entity.")?;
-
-    let target = drag.event().event_target();
+    let dragged = dragged
+        .0
+        .as_mut()
+        .else_error("Not being dragged somehow.")?;
 
     let window = window.single().else_error("Not a single window.")?;
     let cursor_translation = window.cursor_position().else_return()?;
@@ -59,14 +83,14 @@ pub fn drag(
             &MeshRayCastSettings {
                 visibility: RayCastVisibility::VisibleInView,
                 filter: &|entity| {
-                    if entity == target {
+                    if entity == on.entity {
                         return false;
                     }
                     let Ok(comes_from_root_entity) = comes_from_root_entity.get(entity) else {
                         return true;
                     };
 
-                    comes_from_root_entity.0 != target
+                    comes_from_root_entity.0 != on.entity
                 },
                 ..default()
             },
@@ -74,11 +98,5 @@ pub fn drag(
         .first()
         .else_return()?;
 
-    let cursor_translation = hit.point;
-    let desired_translation = cursor_translation + Vec3::new(0., 1., 0.);
-
-    let displacement = desired_translation - transform.translation;
-    let time = time.delta_secs();
-    **velocity = displacement * time * 1000.;
-    **velocity = velocity.min(Vec3::splat(10.));
+    *dragged = hit.point;
 }

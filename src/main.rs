@@ -13,7 +13,7 @@ use bevy::{
     prelude::*,
 };
 
-const DEVELOP: bool = true;
+const DEVELOP: bool = false;
 
 /// The prelude for bevy, but slightly modified.
 mod bevy_prelude {
@@ -23,7 +23,6 @@ mod bevy_prelude {
     };
     pub fn plugin(_: &mut App) {}
     pub fn plugins_in_modules(_: &mut App) {}
-    pub fn patch(_: Query<(&Name, &mut Transform), Added<Name>>) {}
     pub use crate::error_handling::ToUnwrapResult;
     pub use crate::gather::bindings::*;
     pub use crate::plugin_module;

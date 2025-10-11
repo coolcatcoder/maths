@@ -27,7 +27,7 @@ pub fn load(commands: &mut Commands) {
 
     // player
     commands
-        .spawn((Transform::from_xyz(0., 1., 7.), Dragged(false)))
+        .spawn((Transform::from_xyz(0., 1., 7.), Dragged::default()))
         .instantiate(RobotConfig);
 
     commands.spawn((LightBulb, Transform::from_xyz(3., 0.5, 4.)));
