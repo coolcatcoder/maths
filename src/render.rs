@@ -32,7 +32,7 @@ pub struct SceneNotShadowCaster;
 pub struct ComesFromRootEntity(pub Entity);
 
 /// Camera's offset from the controlled character.
-const CAMERA_OFFSET: Vec3 = Vec3::new(0., 1., 1.3);
+const CAMERA_OFFSET: Vec3 = Vec3::new(0., 2., 2.5);
 
 #[derive(Component)]
 pub struct CameraFollow;

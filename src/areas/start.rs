@@ -33,7 +33,7 @@ fn full_patch(
     let (name, transform) = loaded
         .get_mut(on.loaded)
         .else_error("Could not get components on loaded entity.")?;
-
+    
     //patch(name, transform);
 
     #[allow(clippy::match_same_arms)]

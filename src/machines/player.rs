@@ -6,7 +6,7 @@ pub fn plugin(app: &mut App) {
     app.add_systems(Update, load);
 }
 
-pub fn load(
+fn load(
     names: Query<(Entity, &Name), Added<Name>>,
     asset_server: Res<AssetServer>,
     mut commands: Commands,
@@ -34,7 +34,7 @@ pub fn load(
                 lose_control: 13.,
                 slowing: 0.05,
             },
-            BasicHorizontalControl { speed: 10. },
+            BasicHorizontalControl { speed: 2. },
         ));
     }
 }

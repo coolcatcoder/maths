@@ -56,15 +56,15 @@ fn testing(mut commands: Commands) {
     //     Transform::from_xyz(-5., 0.5, 0.),
     // ));
 
-    let mut tester = commands.spawn(CollisionLayers::new(
-        [CollisionLayer::Default, CollisionLayer::Floor],
-        [
-            CollisionLayer::Default,
-            CollisionLayer::Floor,
-            CollisionLayer::Cable,
-        ],
-    ));
-    tester.join_group(PhysicsDynamic);
+    // let mut tester = commands.spawn(CollisionLayers::new(
+    //     [CollisionLayer::Default, CollisionLayer::Floor],
+    //     [
+    //         CollisionLayer::Default,
+    //         CollisionLayer::Floor,
+    //         CollisionLayer::Cable,
+    //     ],
+    // ));
+    // tester.join_group(PhysicsDynamic);
 
     //let cable = commands.spawn_ext(()).id();
     //let plug_1 = commands.spawn_ext(()).relegate_despawn(cable);

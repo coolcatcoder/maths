@@ -40,7 +40,7 @@ bevy = { version = "0.17.2", default-features = false, features = [
     "track_location",
     ]}
 leafwing-input-manager = "0.18.0"
-avian3d = { git = "https://github.com/Jondolf/avian" }
+avian3d = { git = "https://github.com/Jondolf/avian", features = ["collider-from-mesh"]}
 bevy_mod_outline = { path="../bevy_mod_outline_0_17_patching" }
 const-str = "0.7.0"
 serde_json = "1.0.145"
