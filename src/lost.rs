@@ -41,20 +41,20 @@ fn testing(mut commands: Commands) {
     //     ),
     //     Transform::from_xyz(10., 5., 0.),
     // ));
-    commands.spawn((
-        Tester,
-        Controlled,
-        MassPropertiesBundle::from_shape(&Cuboid::new(1., 2., 1.), 20.),
-        CollisionLayers::new(
-            [CollisionLayer::Default, CollisionLayer::Floor],
-            [
-                CollisionLayer::Default,
-                CollisionLayer::Floor,
-                CollisionLayer::Cable,
-            ],
-        ),
-        Transform::from_xyz(-5., 0.5, 0.),
-    ));
+    // commands.spawn((
+    //     Tester,
+    //     Controlled,
+    //     MassPropertiesBundle::from_shape(&Cuboid::new(0.3, 1., 0.3), 20.),
+    //     CollisionLayers::new(
+    //         [CollisionLayer::Default, CollisionLayer::Floor],
+    //         [
+    //             CollisionLayer::Default,
+    //             CollisionLayer::Floor,
+    //             CollisionLayer::Cable,
+    //         ],
+    //     ),
+    //     Transform::from_xyz(-5., 0.5, 0.),
+    // ));
 
     let mut tester = commands.spawn(CollisionLayers::new(
         [CollisionLayer::Default, CollisionLayer::Floor],

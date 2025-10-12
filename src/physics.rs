@@ -1,6 +1,8 @@
-use crate::error_handling::ToUnwrapResult;
+use crate::{error_handling::ToUnwrapResult, plugin_module};
 use avian3d::prelude::*;
 use bevy::prelude::*;
+
+plugin_module!(pub scene);
 
 pub mod common_properties;
 
@@ -10,8 +12,7 @@ pub fn plugin(app: &mut App) {
     if DEVELOP_OVERRIDE || crate::DEVELOP {
         app.add_plugins(PhysicsDebugPlugin);
     }
-    app.add_plugins(PhysicsPlugins::default())
-        .add_systems(Startup, create_floor)
+    app.add_plugins((PhysicsPlugins::default(), plugins_in_modules))
         .add_systems(Update, load)
         .add_systems(Startup, pause);
 }
@@ -24,20 +25,7 @@ fn pause(mut time: ResMut<Time<Physics>>) {
 pub enum CollisionLayer {
     #[default]
     Default,
-    Floor,
     Cable,
-}
-
-#[derive(Component)]
-struct Floor;
-
-fn create_floor(mut commands: Commands) {
-    commands.spawn((
-        Floor,
-        RigidBody::Static,
-        Collider::half_space(Vec3::Y),
-        CollisionLayers::new(CollisionLayer::Floor, CollisionLayer::Floor),
-    ));
 }
 
 fn load(extras: Query<(&GltfExtras, Entity), Added<GltfExtras>>, mut commands: Commands) {

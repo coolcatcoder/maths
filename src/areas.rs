@@ -1,7 +1,11 @@
 use avian3d::prelude::{
     CollisionEnd, CollisionEventsEnabled, CollisionLayers, CollisionStart, RigidBody, Sensor,
 };
-use bevy::{ecs::{lifecycle::HookContext, world::DeferredWorld}, prelude::*, scene::SceneInstanceReady};
+use bevy::{
+    ecs::{lifecycle::HookContext, world::DeferredWorld},
+    prelude::*,
+    scene::SceneInstanceReady,
+};
 
 use crate::{error_handling::ToUnwrapResult, physics::CollisionLayer, plugin_module};
 
@@ -32,28 +36,40 @@ pub fn plugin(app: &mut App) {
     area_plugins(app);
     app.add_plugins(plugins_in_modules)
         //.add_systems(Startup, temp_load_all)
-        .add_systems(Update, (on_enter, on_exit, apply_patches));
+        .add_systems(Update, (on_enter, on_exit));
 }
-
-#[derive(Component)]
-pub struct LoadedFromArea(pub Entity);
 
 #[derive(Component)]
 #[component(on_add = Self::on_add)]
-pub struct Area {
-    pub patch_function: fn(&str, Mut<Transform>),
+pub struct LoadedFromArea(pub Entity);
+
+impl LoadedFromArea {
+    fn on_add(mut world: DeferredWorld, context: HookContext) {
+        let area = world
+            .entity(context.entity)
+            .get::<Self>()
+            .else_error("It just got added, how on earth is there not a LoadedFromArea?")?
+            .0;
+        world.commands().trigger(AreaLoadedEntity {
+            area,
+            loaded: context.entity,
+        });
+    }
 }
+
+#[derive(Component)]
+#[component(on_add = Self::on_add)]
+pub struct Area;
 
 impl Area {
     fn on_add(mut world: DeferredWorld, context: HookContext) {
-        world
-            .commands()
-            .entity(context.entity)
-            .observe(Self::load);
+        world.commands().entity(context.entity).observe(Self::load);
     }
 
     fn load(on: On<SceneInstanceReady>, children: Query<&Children>, mut commands: Commands) {
-        let scene_children = children.get(on.entity).else_error("Failed to get scene children.")?;
+        let scene_children = children
+            .get(on.entity)
+            .else_error("Failed to get scene children.")?;
         if scene_children.len() != 1 {
             error!("There should only be one child for SceneInstance entities.");
             return;
@@ -67,11 +83,12 @@ impl Area {
     }
 }
 
-fn apply_patches(areas: Query<&Area>, mut to_load: Query<(&LoadedFromArea, &Name, &mut Transform), Added<LoadedFromArea>>) {
-    to_load.iter_mut().for_each(|(loaded_from_area, name, transform)| {
-        let area = areas.get(loaded_from_area.0).else_error("Could not get area.")?;
-        (area.patch_function)(name, transform);
-    });
+/// Make an area observe this in order to patch entities that are loaded.
+#[derive(EntityEvent)]
+struct AreaLoadedEntity {
+    #[event_target]
+    area: Entity,
+    loaded: Entity,
 }
 
 fn temp_load_all(asset_server: Res<AssetServer>, mut commands: Commands) {

@@ -1,5 +1,10 @@
 use crate::{
-    areas::LoadedFromArea, error_handling::ToUnwrapResult, machines::outlet::OutletSensor, mouse::{Interactable, drag::Dragged, selection::SelectOthers}, physics::CollisionLayer, render::ComesFromRootEntity
+    areas::LoadedFromArea,
+    error_handling::ToUnwrapResult,
+    machines::outlet::OutletSensor,
+    mouse::{Interactable, drag::Dragged, selection::SelectOthers},
+    physics::CollisionLayer,
+    render::ComesFromRootEntity,
 };
 use avian3d::prelude::*;
 use bevy::{app::Propagate, prelude::*};

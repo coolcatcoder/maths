@@ -24,7 +24,7 @@ mod bevy_prelude {
     pub fn plugin(_: &mut App) {}
     pub fn plugins_in_modules(_: &mut App) {}
     pub use crate::error_handling::ToUnwrapResult;
-    pub use crate::gather::bindings::*;
+    // pub use crate::gather::bindings::*;
     pub use crate::plugin_module;
 }
 
@@ -43,15 +43,6 @@ mod mind_control;
 mod mouse;
 mod physics;
 mod render;
-//mod sync;
-
-type FromSync = gather_types!(sync);
-
-trait Is<T> {}
-impl<T> Is<T> for T {}
-
-const fn tester<A, B: Is<A>>() {}
-//const _:() = tester::<FromSync, (i32, (f32, sync::Wow))>();
 
 const FPS_DEBUG: bool = false;
 

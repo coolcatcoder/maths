@@ -117,3 +117,29 @@ impl<T, E: Debug> ToUnwrapResult for Result<T, E> {
         }
     }
 }
+
+impl ToUnwrapResult for bool {
+    type Inner = ();
+
+    fn else_return(self) -> UnwrapResult<Self::Inner> {
+        if self {
+            UnwrapResult::Ok(())
+        } else {
+            UnwrapResult::Return
+        }
+    }
+    fn else_warn(self, warn: impl ToString) -> UnwrapResult<Self::Inner> {
+        if self {
+            UnwrapResult::Ok(())
+        } else {
+            UnwrapResult::Warn(warn.to_string())
+        }
+    }
+    fn else_error(self, error: impl ToString) -> UnwrapResult<Self::Inner> {
+        if self {
+            UnwrapResult::Ok(())
+        } else {
+            UnwrapResult::Error(error.to_string())
+        }
+    }
+}

@@ -16,10 +16,10 @@ pub struct Tester;
 impl Tester {
     fn on_add(mut world: DeferredWorld, context: HookContext) {
         let asset_server = world.resource::<AssetServer>();
-        let scene = asset_server.load("creatures/tester.glb#Scene0");
+        //let scene = asset_server.load("creatures/tester.glb#Scene0");
 
         world.commands().entity(context.entity).insert((
-            SceneRoot(scene),
+            //SceneRoot(scene),
             RigidBody::Dynamic,
             Collider::compound(vec![(
                 Vec3::Y * 0.5,

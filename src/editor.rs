@@ -28,13 +28,18 @@ use crate::{
     render::ComesFromRootEntity,
 };
 
+const DEVELOP_OVERRIDE: bool = false;
+
 pub fn editor(file_path: &'static str) -> impl Fn(&mut App) {
     move |app: &mut App| {
         app.add_plugins(FeathersPlugins)
             .insert_resource(UiTheme(create_dark_theme()))
             .add_systems(Update, (make_develop_selectable, add_extra_selectables))
-            .add_systems(Startup, create_load(file_path))
-            .add_systems(Update, log_system);
+            .add_systems(Startup, create_load(file_path));
+
+        if crate::DEVELOP || DEVELOP_OVERRIDE {
+            app.add_systems(Update, log_system);
+        }
     }
 }
 
