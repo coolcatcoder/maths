@@ -59,8 +59,8 @@ impl Area {
 
 /// Make an area observe this in order to patch entities that are loaded.
 #[derive(EntityEvent)]
-struct AreaLoadedEntity {
+pub struct AreaLoadedEntity {
     #[event_target]
-    area: Entity,
-    loaded: Entity,
+    pub area: Entity,
+    pub loaded: Entity,
 }

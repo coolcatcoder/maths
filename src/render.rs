@@ -32,7 +32,7 @@ pub struct SceneNotShadowCaster;
 pub struct ComesFromRootEntity(pub Entity);
 
 /// Camera's offset from the controlled character.
-const CAMERA_OFFSET: Vec3 = Vec3::new(0., 2., 2.5);
+const CAMERA_OFFSET: Vec3 = Vec3::new(0., 3., 3.);
 
 #[derive(Component)]
 pub struct CameraFollow;
@@ -56,10 +56,14 @@ pub fn camera_follow(
     let follow = follow.single().else_return()?;
     let mut camera = camera.single_mut().else_error("Could not get camera.")?;
 
-    let mut camera_translation =
-        camera.translation.xz() - Vec2::new(CAMERA_OFFSET.x, CAMERA_OFFSET.z);
-    camera_translation.smooth_nudge(&follow.translation.xz(), 10., time.delta_secs());
-    camera.translation.x = camera_translation.x + CAMERA_OFFSET.x;
-    camera.translation.z = camera_translation.y + CAMERA_OFFSET.z;
+    let camera_no_offset = camera.translation.xz() - CAMERA_OFFSET.xz();
+
+    let vector_from_camera_to_follow = follow.translation.xz() - camera_no_offset;
+    let amount_to_translate = vector_from_camera_to_follow * (6. * time.delta_secs());
+
+    let new_xz_translation = camera_no_offset + amount_to_translate + CAMERA_OFFSET.xz();
+
+    camera.translation.x = new_xz_translation.x;
+    camera.translation.z = new_xz_translation.y;
 }
 
