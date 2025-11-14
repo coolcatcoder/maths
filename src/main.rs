@@ -1,83 +1,84 @@
-#![feature(try_trait_v2)]
-#![feature(macro_attr)]
-#![warn(clippy::pedantic)]
-#![allow(clippy::needless_pass_by_value)]
-#![allow(clippy::type_complexity)]
-#![warn(clippy::unwrap_used)]
-#![allow(clippy::needless_for_each)]
+#![allow(unused_imports)]
+#![allow(dead_code)]
 #![allow(clippy::too_many_arguments)]
-#![allow(clippy::too_many_lines)]
 
-use bevy::{
-    dev_tools::fps_overlay::{FpsOverlayConfig, FpsOverlayPlugin},
-    prelude::*,
-};
+use bevy::{ecs::system::SystemParam, prelude::*};
+use std::ops::{Deref, DerefMut};
 
-const DEVELOP: bool = false;
+mod l_systems;
+mod linear_transformations_2d;
 
-/// The prelude for bevy, but slightly modified.
-mod bevy_prelude {
-    pub use bevy::{
-        ecs::{lifecycle::HookContext, world::DeferredWorld},
-        prelude::*,
-    };
-    pub fn plugin(_: &mut App) {}
-    pub fn plugins_in_modules(_: &mut App) {}
-    pub use crate::error_handling::ToUnwrapResult;
-    // pub use crate::gather::bindings::*;
-    pub use crate::plugin_module;
+use l_systems as run;
+
+mod prelude {
+    pub(crate) use crate::{Draw, Vector};
+    pub use bevy::{color::palettes::css::*, prelude::*};
+
+    pub fn start() {}
+    pub fn update() {}
+
+    pub fn start_2d(mut commands: Commands) {
+        commands.spawn((
+            Camera2d,
+            Projection::Orthographic(OrthographicProjection {
+                scale: 0.01,
+                ..OrthographicProjection::default_2d()
+            }),
+        ));
+    }
 }
 
-mod gather;
-
-plugin_module!(sync, editor);
-
-mod areas;
-mod controls;
-mod creatures;
-mod error_handling;
-mod instantiate;
-mod lost;
-mod machines;
-mod mind_control;
-mod mouse;
-mod physics;
-mod render;
-
-const FPS_DEBUG: bool = false;
-
 fn main() {
-    let mut app = App::new();
+    App::new()
+        .add_plugins((DefaultPlugins, run::plugin))
+        .add_systems(Startup, run::start)
+        .add_systems(Update, run::update)
+        .run();
+}
 
-    app.add_plugins((
-        DefaultPlugins,
-        render::plugin,
-        controls::plugin,
-        lost::plugin,
-        creatures::plugin,
-        mind_control::plugin,
-        machines::plugin,
-        mouse::plugin,
-        physics::plugin,
-        areas::plugin,
-        instantiate::plugin,
-        plugins_in_modules,
-    ));
+#[derive(SystemParam)]
+struct Draw<'w, 's>(Gizmos<'w, 's>);
 
-    if FPS_DEBUG {
-        app.add_plugins(FpsOverlayPlugin {
-            config: FpsOverlayConfig {
-                text_config: TextFont {
-                    font_size: 42.0,
-                    ..default()
-                },
-                text_color: Srgba::GREEN.into(),
-                refresh_interval: core::time::Duration::from_millis(100),
-                enabled: true,
-                ..default()
-            },
-        });
+impl<'w, 's> Deref for Draw<'w, 's> {
+    type Target = Gizmos<'w, 's>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<'w, 's> DerefMut for Draw<'w, 's> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
+
+impl<'a, 'w, 's> Draw<'w, 's> {
+    fn line(&mut self, start: [f32; 2], end: [f32; 2], colour: impl Into<Color>) {
+        self.line_2d(start.into(), end.into(), colour);
     }
 
-    app.run();
+    fn vector(
+        &'a mut self,
+        vector: impl Into<Vec2> + Copy,
+        colour: impl Into<Color>,
+    ) -> Vector<'a, 'w, 's> {
+        self.arrow_2d(Vec2::ZERO, vector.into(), colour);
+        Vector {
+            vector: vector.into(),
+            gizmos: self,
+        }
+    }
+}
+
+struct Vector<'a, 'w, 's> {
+    vector: Vec2,
+    gizmos: &'a mut Gizmos<'w, 's>,
+}
+
+impl Vector<'_, '_, '_> {
+    fn show_numbers(&mut self) {
+        // TO DO: Once we get text gizmos, replace this with them.
+        info!("{}", self.vector);
+    }
 }

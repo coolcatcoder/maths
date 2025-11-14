@@ -1,10 +1,7 @@
 [package]
-name = "mind_control_retry"
+name = "maths"
 version = "0.1.0"
 edition = "2024"
-
-[workspace]
-members = ["procedural_macros"]
 
 [dependencies]
 bevy = { version = "0.17.2", default-features = false, features = [
@@ -38,19 +35,8 @@ bevy = { version = "0.17.2", default-features = false, features = [
     "bevy_input_focus",
     "debug",
     "track_location",
-    ]}
-leafwing-input-manager = "0.18.0"
-avian3d = { git = "https://github.com/Jondolf/avian", features = ["collider-from-mesh"]}
-bevy_mod_outline = { path="../bevy_mod_outline_0_17_patching" }
-const-str = "0.7.0"
-serde_json = "1.0.145"
-procedural_macros = { path = "procedural_macros" }
-
-[profile.dev.package.bevy]
-hint-mostly-unused = true
-
-[profile.release.package.bevy]
-hint-mostly-unused = true
+    "bevy_gizmos",
+]}
 
 # Enable a small amount of optimization in the dev profile.
 [profile.dev]
