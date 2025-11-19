@@ -7,13 +7,19 @@ use std::ops::{Deref, DerefMut};
 
 mod l_systems;
 mod linear_transformations_2d;
+//mod fractal_tree;
+//mod plant;
+mod entity_with;
+mod my_plant;
+mod secret_santa;
 
-use l_systems as run;
+use entity_with as run;
 
 mod prelude {
     pub(crate) use crate::{Draw, Vector};
     pub use bevy::{color::palettes::css::*, prelude::*};
 
+    pub fn plugin(_: &mut App) {}
     pub fn start() {}
     pub fn update() {}
 
